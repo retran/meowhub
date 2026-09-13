@@ -60,6 +60,12 @@ try:
         monitor_id = upsert(name, type=MonitorType.PUSH, interval=interval)
         token = api.get_monitor(monitor_id)["pushToken"]
         print(f"PUSH_URL {env_var}=http://localhost:3001/api/push/{token}?status=up&msg=OK&ping=")
+
+    # The SSO boundary is the only *login* gate (spec 0002 T10, R17a) — a
+    # push token was never login-gated to begin with, so this changes
+    # nothing about how heartbeats reach Kuma.
+    api.set_settings(disableAuth=True, trustProxy=True, password=PASSWORD)
+    print("disabled Kuma's own login — the proxy's forward-auth is the only gate now")
 finally:
     api.disconnect()
 PYEOF

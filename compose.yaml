@@ -69,6 +69,14 @@ services:
       # 0001 T18, ADR 0015).
       OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+      # The bot resolves an incoming sender through PostgREST as hh_agent
+      # (spec 0002 T12, R6c) — the same data path the app itself would use
+      # (ADR 0014), not a direct database credential of its own (R16). The
+      # workflow mints its own short-lived token per request from this
+      # secret (crypto, allowed below), the same HS256 shape the token
+      # bridge mints for a browser session.
+      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET}
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto
     volumes:
       - n8n_data:/home/node/.n8n
       - ./prompts:/prompts:ro
@@ -81,6 +89,107 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    profiles: ['local', 'deployed']
+
+  authentik-server:
+    image: ghcr.io/goauthentik/server:2026.8.2
+    command: server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_SUPERUSER}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      # Authentik's own console admin (R17a: self-referential, break-glass
+      # covers the case this is misconfigured) — never the household's
+      # first admin, which spec 0002 T13 creates as a real member instead.
+      AUTHENTIK_BOOTSTRAP_EMAIL: ${AUTHENTIK_BOOTSTRAP_EMAIL}
+      AUTHENTIK_BOOTSTRAP_PASSWORD: ${AUTHENTIK_BOOTSTRAP_PASSWORD}
+      # Read by authentik/blueprints/02-app-boundary.yaml (spec 0002 T9):
+      # the proxy's own address, since the household app has none yet.
+      AUTHENTIK_APP_EXTERNAL_HOST: ${AUTHENTIK_APP_EXTERNAL_HOST}
+    volumes:
+      - authentik_media:/media
+      - ./authentik/blueprints:/blueprints/local:ro
+    # No published port (spec 0001 T11 / R6): reachable only through the
+    # proxy, once T9/T10 wire the forward-auth path.
+    healthcheck:
+      test: ['CMD', '/lifecycle/ak', 'healthcheck']
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    profiles: ['local', 'deployed']
+
+  authentik-worker:
+    image: ghcr.io/goauthentik/server:2026.8.2
+    command: worker
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AUTHENTIK_SECRET_KEY: ${AUTHENTIK_SECRET_KEY}
+      AUTHENTIK_POSTGRESQL__HOST: postgres
+      AUTHENTIK_POSTGRESQL__NAME: authentik
+      AUTHENTIK_POSTGRESQL__USER: ${POSTGRES_SUPERUSER}
+      AUTHENTIK_POSTGRESQL__PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      # Read by authentik/blueprints/02-app-boundary.yaml (spec 0002 T9):
+      # the proxy's own address, since the household app has none yet.
+      AUTHENTIK_APP_EXTERNAL_HOST: ${AUTHENTIK_APP_EXTERNAL_HOST}
+    volumes:
+      - authentik_media:/media
+      - ./authentik/blueprints:/blueprints/local:ro
+    profiles: ['local', 'deployed']
+
+  token-bridge:
+    build: ./token-bridge/docker   # see token-bridge/docker/server.py — ADR 0041, spec 0002 T7
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # AUTHENTIK_API_TOKEN comes through env_file, read fresh from disk at
+    # container creation, rather than as a ${...}-substituted `environment`
+    # entry: Task's own dotenv loads .env once at the start of `task up`,
+    # so a value scripts/configure-token-bridge.sh writes to .env mid-run
+    # would otherwise be shadowed by the empty value Task already exported
+    # into every command's environment before that script ever ran — the
+    # same reason the scheduler service below reads the whole file this way.
+    env_file: .env
+    environment:
+      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SUPERUSER: ${POSTGRES_SUPERUSER}
+      POSTGRES_SUPERUSER_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      AUTHENTIK_API_BASE_URL: http://authentik-server:9000
+    # No published port: reached only by the proxy's forward_auth chain
+    # (spec 0001 T11 / R16b), once T9 wires it in.
+    profiles: ['local', 'deployed']
+
+  postgrest:
+    image: postgrest/postgrest:v12.2.8
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # authenticator is the one role that ever connects (spec 0002 R15b);
+      # PostgREST switches into whatever role a verified JWT names via SET
+      # ROLE for the duration of each request.
+      PGRST_DB_URI: postgres://authenticator:${DB_ROLE_AUTHENTICATOR_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${PGRST_JWT_SECRET}
+      # Sets meowhub.actor from the verified JWT's own member_id claim
+      # before every request (spec 0002 T12) — audit_log_trigger requires
+      # it, and nothing else can set a session-local GUC on PostgREST's
+      # behalf per request.
+      PGRST_DB_PRE_REQUEST: pgrst_pre_request
+    # No published port (spec 0001 T11 / R6, spec 0002 R16b): reachable
+    # only through the proxy, once T9 wires the forward-auth chain in.
     profiles: ['local', 'deployed']
 
   proxy:
@@ -110,10 +219,14 @@ services:
     restart: unless-stopped
     volumes:
       - kuma_data:/app/data
-    # Loopback only, deliberately not through the proxy: this is admin-only
-    # tooling (ADR 0020), never a household-facing surface, so R6's boundary
-    # requirement is trivially met by never publishing it — reached by an
-    # SSH tunnel once deployed, same as on the laptop (spec 0001 T13).
+    # Loopback stays published, deliberately, alongside the SSO-gated
+    # proxy route T10 adds: scripts/heartbeat-curl.sh and the backup/
+    # restore/drift jobs push heartbeats over it from the host, and a push
+    # token was never login-gated in the first place — disableAuth (set
+    # below) only removes the login prompt for the dashboard itself.
+    # Reaching that dashboard via loopback still requires the same SSH
+    # access this system already treats as admin-level trust (ADR 0024's
+    # break-glass path is exactly "SSH access, no Authentik required").
     ports:
       - '127.0.0.1:${UPTIME_KUMA_PORT}:3001'
     healthcheck:
@@ -161,3 +274,4 @@ volumes:
   caddy_data:
   caddy_config:
   kuma_data:
+  authentik_media:

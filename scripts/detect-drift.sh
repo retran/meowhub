@@ -12,6 +12,7 @@ COMPOSE="docker compose -f compose.yaml"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
+$COMPOSE exec -T n8n rm -rf /tmp/drift-check
 $COMPOSE exec -T n8n n8n export:workflow --all --separate --output=/tmp/drift-check --pretty >&2
 docker compose cp n8n:/tmp/drift-check/. "$TMP_DIR/" >&2
 

@@ -1,0 +1,18 @@
+version: 1
+metadata:
+  name: meowhub groups
+entries:
+  # Mapped to the database roles hh_admin/hh_member by the token bridge
+  # (ADR 0041) — Authentik knows nothing about our roles, only these two
+  # groups (spec 0002 R6a, R7).
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: admin
+    id: meowhub-admin-group
+
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: household
+    id: meowhub-household-group

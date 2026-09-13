@@ -1,0 +1,48 @@
+version: 1
+metadata:
+  name: meowhub failed-login lockout
+entries:
+  # A Deny stage after the password stage — Authentik's Enterprise-only
+  # "Account Lockdown" stage is not an option here (R17/A33: no paid
+  # feature anywhere), so lockout is a Reputation Policy gating a Deny
+  # stage instead, the community-edition pattern (spec 0002 T6, R3c).
+  - model: authentik_stages_deny.denystage
+    state: present
+    identifiers:
+      name: meowhub-lockout-deny
+    id: lockout-deny-stage
+
+  # Reputation drops on every failed login automatically (built in); this
+  # policy reads that score per-username, not per-IP — a household shares
+  # one network address, and lockout must follow the account (R3c).
+  - model: authentik_policies_reputation.reputationpolicy
+    state: present
+    identifiers:
+      name: meowhub-failed-login-reputation
+    attrs:
+      check_ip: false
+      check_username: true
+      threshold: -5
+    id: lockout-reputation-policy
+
+  - model: authentik_flows.flowstagebinding
+    state: present
+    identifiers:
+      target: !Find [authentik_flows.flow, [slug, default-authentication-flow]]
+      stage: !KeyOf lockout-deny-stage
+      order: 25
+    id: lockout-deny-binding
+
+  # ReputationPolicy.passes() already returns True precisely when the
+  # score is bad (score <= threshold) — its "passes" means "reputation is
+  # bad enough", not "the request is fine". No negate: binding it straight
+  # is what makes the Deny stage fire on bad reputation.
+  - model: authentik_policies.policybinding
+    state: present
+    identifiers:
+      target: !KeyOf lockout-deny-binding
+      policy: !KeyOf lockout-reputation-policy
+      order: 0
+    attrs:
+      negate: false
+      enabled: true

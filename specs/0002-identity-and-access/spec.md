@@ -1,9 +1,9 @@
 ---
 id: 0002
 title: Identity and access
-status: review
+status: done
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---
@@ -49,12 +49,28 @@ password, and an attempt to exceed a role fails at the database.
 
 ### Identity
 
-- **R1.** A member must be able to sign in with **email and password**, from any
-  device, with nothing bought and nothing enrolled beforehand. This is the method
-  a new member is onboarded with.
-- **R1a.** A member must be able to sign in with their **Apple ID** once the
+- **R1.** An admin must create a member's account — an email address and an
+  initial password — before that member can sign in. There is no self-service
+  sign-up: a person cannot bring themselves into existence as a member, only an
+  admin can, the same boundary R6c already draws for a Telegram id.
+- **R1d.** The password an admin sets at R1 is **temporary**: it must be marked
+  as needing a change, and the account must reach nothing until the member
+  changes it at their first sign-in — the same rule spec 0001's bootstrap
+  admin already follows (R14e), extended to every member an admin creates.
+- **R1a.** A member must be able to sign in with **email and password** from any
+  device, with nothing bought and nothing enrolled beyond the account R1 already
+  created. This is the method a new member is onboarded with.
+- **R1b.** A member must be able to sign in with their **Apple ID** once the
   membership exists — and that sign-in must attach to an account that already
   exists, never create one.
+- **R1c.** The **first** Apple sign-in for a member must attach automatically,
+  matched on the email address the admin gave that account at R1 against the
+  email Apple reports at that first grant — no separate admin confirmation step
+  for this one link, since the admin already performed the equivalent act by
+  creating the account. Every sign-in after that first attach matches on Apple's
+  stable subject identifier (R4) exactly as any other method does, never on
+  email again: Hide My Email, or a changed Apple ID email, must not break a link
+  already made (A7).
 - **R2.** A member must be able to authenticate with a **passkey** using the
   biometric sensor on their own device, without a password.
 - **R3.** Every member must hold at least two methods, and **an admin must hold at
@@ -198,9 +214,18 @@ break-glass path, and the tests that prove all of it by impersonation.
 
 ## Acceptance criteria
 
-- [ ] **A1.** Given a new member with no device enrolled and no Apple membership
-      in existence, when they sign in with email and password, then they reach the
-      surfaces their role allows — onboarding depends on no purchase.
+- [ ] **A1.** Given an admin has created a member's account (an email and an
+      initial password, nothing bought) and no device enrolled yet, when that
+      member signs in with the email and password, then they reach the surfaces
+      their role allows — onboarding depends on an admin's one action, never a
+      purchase, and self-registration is refused if attempted.
+- [ ] **A1a.** Given a member whose account an admin created, when Apple reports
+      an email at first sign-in matching that account's email, then the Apple
+      identity attaches to it automatically — no second admin step for this link.
+- [ ] **A1b.** Given a member whose account an admin just created, when they sign
+      in with the temporary password before changing it, then they reach nothing
+      until they set their own password; a second sign-in with the same
+      temporary password fails identically.
 - [ ] **A2.** Given that member signed in, when they enrol a passkey and later an
       Apple ID, then both attach to the **same** account and no second account
       exists.
@@ -329,10 +354,10 @@ These refine the shared baselines in [docs/standards/budgets.md](../../docs/stan
 
 | # | Question | Blocks | Status |
 |---|---|---|---|
-| Q1 | Is the Apple Developer Program membership held, or will it be bought? It gates only R1a, and no longer blocks anything: email and password onboards everyone today (ADR 0032) | nothing | open |
+| Q1 | Is the Apple Developer Program membership held, or will it be bought? It gates only R1b/R1c, and no longer blocks anything: email and password onboards everyone today (ADR 0032) | nothing | open |
 | Q2 | The daughter's Apple ID — a child account under Family Sharing, and does it have the two-factor authentication Apple requires? Only needed if and when Apple sign-in is added for her | nothing | open |
 
 ## Related
 
-- ADRs: 0014, 0015, 0016, 0021, 0023, 0024, 0026, 0030, 0032, 0034
+- ADRs: 0014, 0015, 0016, 0021, 0023, 0024, 0026, 0030, 0032, 0034, 0041
 - Specs: 0001 (must be done first), 0003, 0006

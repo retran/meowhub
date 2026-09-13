@@ -1,0 +1,18 @@
+version: 1
+metadata:
+  name: meowhub outpost bindings
+entries:
+  # Every Proxy Provider's outpost binding lives here, in one place, not
+  # scattered across each provider's own blueprint file: attrs on an
+  # existing model replace the field wholesale, not merge into it, so a
+  # second file also setting "providers" would silently drop whatever the
+  # first one bound. As later tasks (spec 0002 T10) add more surfaces
+  # behind the boundary, their Proxy Providers get added to the list
+  # below, never given their own outpost entry.
+  - model: authentik_outposts.outpost
+    state: present
+    identifiers:
+      managed: goauthentik.io/outposts/embedded
+    attrs:
+      providers:
+        - !Find [authentik_providers_proxy.proxyprovider, [name, meowhub-app-provider]]

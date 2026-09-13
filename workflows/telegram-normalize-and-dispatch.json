@@ -7,7 +7,7 @@
         [
           {
             "index": 0,
-            "node": "Reply",
+            "node": "Mint Agent Token",
             "type": "main"
           }
         ]
@@ -53,6 +53,57 @@
           {
             "index": 0,
             "node": "Normalize",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Mint Agent Token": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Resolve Sender",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Resolve Sender": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Linked?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Linked?": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Reply",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Log Denial",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Log Denial": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Reply Denied",
             "type": "main"
           }
         ]
@@ -171,7 +222,7 @@
       "id": "d0000000-0000-4000-8000-000000000006",
       "name": "Reply",
       "parameters": {
-        "jsonBody": "={{ { chat_id: $json.chat_id, ...($json.message_thread_id ? { message_thread_id: $json.message_thread_id } : {}), text: ($json.language_hint === \"ru\" ? \"Meow \u043d\u0430 \u0441\u0432\u044f\u0437\u0438. \u0418\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0441\u043e\u0431\u0440\u0430\u043d\u0430, \u043f\u0440\u043e\u0434\u0443\u043a\u0442 \u0435\u0449\u0451 \u0432\u043f\u0435\u0440\u0435\u0434\u0438.\" : \"Meow is here. The infrastructure works; the product comes next.\") } }}",
+        "jsonBody": "={{ { chat_id: $('Mint Agent Token').item.json.chat_id, ...($('Mint Agent Token').item.json.message_thread_id ? { message_thread_id: $('Mint Agent Token').item.json.message_thread_id } : {}), text: ($('Mint Agent Token').item.json.language_hint === \"ru\" ? \"Meow на связи. Инфраструктура собрана, продукт ещё впереди.\" : \"Meow is here. The infrastructure works; the product comes next.\") } }}",
         "method": "POST",
         "options": {},
         "sendBody": true,
@@ -179,8 +230,148 @@
         "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_DELIVERY_MODE === 'polling' ? $env.TELEGRAM_LOCAL_BOT_TOKEN : $env.TELEGRAM_BOT_TOKEN }}/sendMessage"
       },
       "position": [
+        1600,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000007",
+      "name": "Mint Agent Token",
+      "parameters": {
+        "jsCode": "// A member is ours (ADR 0030); resolving a sender to one is a data-API\n// read like any other (ADR 0014), so this mints the same short-lived,\n// stateless HS256 token the token bridge mints for a browser session\n// (ADR 0041) rather than holding a standing database credential (R16).\nconst crypto = require('crypto');\nconst b64url = (buf) => buf.toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\nconst header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\nconst payload = b64url(Buffer.from(JSON.stringify({ role: 'hh_agent', exp: Math.floor(Date.now() / 1000) + 60 })));\nconst signingInput = `${header}.${payload}`;\nconst signature = b64url(crypto.createHmac('sha256', $env.PGRST_JWT_SECRET).update(signingInput).digest());\nreturn [{ json: { ...$json, agent_token: `${signingInput}.${signature}` } }];"
+      },
+      "position": [
         1040,
         100
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000008",
+      "name": "Resolve Sender",
+      "parameters": {
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.agent_token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "kind",
+              "value": "eq.telegram"
+            },
+            {
+              "name": "external_id",
+              "value": "=eq.{{ $json.channel_id }}"
+            },
+            {
+              "name": "select",
+              "value": "member_id"
+            }
+          ]
+        },
+        "url": "=http://postgrest:3000/member_channel"
+      },
+      "position": [
+        1220,
+        100
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000009",
+      "name": "Linked?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.body.length }}",
+              "operator": {
+                "operation": "gt",
+                "type": "number"
+              },
+              "rightValue": 0
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        1400,
+        100
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-00000000000a",
+      "name": "Log Denial",
+      "parameters": {
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('Mint Agent Token').item.json.agent_token }}"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=minimal"
+            }
+          ]
+        },
+        "jsonBody": "={{ { table_name: 'member_channel', row_id: $('Mint Agent Token').item.json.channel_id, operation: 'denied', after_state: { kind: 'telegram', source: $('Mint Agent Token').item.json.source }, actor: 'telegram-bot' } }}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "http://postgrest:3000/audit_log"
+      },
+      "position": [
+        1600,
+        220
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-00000000000b",
+      "name": "Reply Denied",
+      "parameters": {
+        "jsonBody": "={{ { chat_id: $('Mint Agent Token').item.json.chat_id, ...($('Mint Agent Token').item.json.message_thread_id ? { message_thread_id: $('Mint Agent Token').item.json.message_thread_id } : {}), text: ($('Mint Agent Token').item.json.language_hint === \"ru\" ? \"Я вас пока не знаю. Попросите администратора представить меня вам.\" : \"I do not yet know you. Ask an admin to introduce us.\") } }}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "=https://api.telegram.org/bot{{ $('Mint Agent Token').item.json.source === 'polling' || $env.TELEGRAM_DELIVERY_MODE === 'polling' ? $env.TELEGRAM_LOCAL_BOT_TOKEN : $env.TELEGRAM_BOT_TOKEN }}/sendMessage"
+      },
+      "position": [
+        1800,
+        220
       ],
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2

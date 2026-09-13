@@ -6,10 +6,6 @@
 	order rate_limit before basicauth
 }
 
-# n8n is the only application behind this proxy today — both its public
-# webhook paths and its own editor UI, gated by n8n's own login
-# (N8N_BASIC_AUTH_ACTIVE) until spec 0002 puts a real identity provider in
-# front of it (R17a).
 {$PUBLIC_HOSTNAME} {
 	@webhooks path /webhook/* /webhook-test/* /healthz
 
@@ -29,8 +25,91 @@
 		reverse_proxy n8n:5678
 	}
 
-	# Everything else — the editor UI — is n8n's own admin surface, behind
-	# its own login. Not rate-limited: only an authenticated admin gets far
-	# enough to matter.
-	reverse_proxy n8n:5678
+	# Authentik's own login/consent/enrollment UI and API, used by every
+	# Proxy Provider's forward-auth challenge below — never gated itself,
+	# since it is what gates everything else (spec 0002 T9). A real sign-in
+	# needs all of these reachable at this same host: the session cookie
+	# forward_auth checks is scoped to whatever host issued it, so the
+	# login API can't live anywhere else.
+	handle /outpost.goauthentik.io/* {
+		reverse_proxy authentik-server:9000
+	}
+	handle /api/* {
+		reverse_proxy authentik-server:9000
+	}
+	handle /if/* {
+		reverse_proxy authentik-server:9000
+	}
+	handle /static/* {
+		reverse_proxy authentik-server:9000
+	}
+	handle /application/* {
+		reverse_proxy authentik-server:9000
+	}
+
+	# The data API's own path (spec 0002 T9, R17a's "household app" row —
+	# there is no app host yet, spec 0006 builds one): Authentik forward-
+	# auth decides who is signed in, the token bridge (ADR 0041) turns that
+	# into a PostgREST JWT, and only then does the request reach PostgREST
+	# itself. The browser never sees the token bridge's response directly —
+	# copy_headers carries it straight into the next hop.
+	handle /rest/* {
+		forward_auth authentik-server:9000 {
+			uri /outpost.goauthentik.io/auth/caddy
+			copy_headers X-Authentik-Uid
+			trusted_proxies private_ranges
+		}
+		forward_auth token-bridge:8095 {
+			uri /
+			copy_headers Authorization
+		}
+		handle_path /rest/* {
+			reverse_proxy postgrest:3000
+		}
+	}
+
+	# Uptime Kuma and n8n are admin-only (R17a) — the household app's own
+	# provider authorizes any signed-in member (R9: everyone reads the
+	# ledger), so it cannot also gate these; a signed-in session is
+	# necessary but not sufficient here. The second forward_auth asks the
+	# token bridge whether the signed-in subject holds the "admin" group,
+	# resolved from Authentik's own API rather than trusted from a
+	# forward-auth response header — X-Authentik-Groups turned out to
+	# depend on which OAuth scopes happened to be negotiated for a given
+	# request, sometimes omitted for a user who did hold the group (spec
+	# 0002 T10). A non-2xx from either check aborts the request with that
+	# same status, same as the /rest/* chain above.
+
+	# Uptime Kuma (spec 0002 T10): its own login is disabled
+	# (scripts/configure-monitoring.sh), so this is the only gate.
+	handle /kuma/* {
+		forward_auth authentik-server:9000 {
+			uri /outpost.goauthentik.io/auth/caddy
+			copy_headers X-Authentik-Uid
+			trusted_proxies private_ranges
+		}
+		forward_auth token-bridge:8095 {
+			uri /require-group/admin
+		}
+		handle_path /kuma/* {
+			reverse_proxy uptime-kuma:3001
+		}
+	}
+
+	# n8n's editor UI (spec 0002 T10): the same two checks, then n8n's own
+	# password — community edition has no SSO of its own (ADR 0001), so
+	# this is the one surface with a second, documented step (both admins
+	# hold the shared password, ADR 0024). Not rate-limited: only an
+	# authenticated admin gets far enough to matter.
+	handle {
+		forward_auth authentik-server:9000 {
+			uri /outpost.goauthentik.io/auth/caddy
+			copy_headers X-Authentik-Uid
+			trusted_proxies private_ranges
+		}
+		forward_auth token-bridge:8095 {
+			uri /require-group/admin
+		}
+		reverse_proxy n8n:5678
+	}
 }

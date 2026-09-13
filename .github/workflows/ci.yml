@@ -22,6 +22,12 @@ jobs:
           cat >> .env <<'ENV'
           MEOWHUB_ENV=local
           COMPOSE_PROJECT_NAME=meowhub
+          DB_ROLE_AUTHENTICATOR_PASSWORD=ci-password
+          AUTHENTIK_SECRET_KEY=ci-only-authentik-secret-key
+          AUTHENTIK_BOOTSTRAP_EMAIL=akadmin@example.test
+          AUTHENTIK_BOOTSTRAP_PASSWORD=ci-password
+          PGRST_JWT_SECRET=ci-only-postgrest-jwt-secret-must-be-32-chars
+          AUTHENTIK_APP_EXTERNAL_HOST=https://localhost:8443
           POSTGRES_HOST=postgres
           POSTGRES_PORT=5432
           POSTGRES_DB=meowhub

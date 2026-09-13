@@ -1,0 +1,48 @@
+version: 1
+metadata:
+  name: meowhub token bridge service account
+entries:
+  # The token bridge (ADR 0041) resolves a member's role by looking up
+  # their group membership directly from Authentik's own API, rather than
+  # trusting X-Authentik-Groups on the forward-auth response — that header
+  # turned out to depend on which OAuth scopes happened to be negotiated
+  # for a given request (spec 0002 T10 found this directly: the same
+  # provider, same user, omitted it for one path and included it for
+  # another). A server-to-server API call is not subject to that at all.
+  #
+  # Its own group is a superuser group, deliberately: this is a trusted
+  # internal service, never reachable except from inside the compose
+  # network, reading only what it needs (a user's group membership) — the
+  # same trust level n8n and Authentik's own containers already get by
+  # connecting to PostgreSQL as its superuser (ADR 0002's small-scale,
+  # single-tenant trust model), rather than a fight with per-model RBAC
+  # for a read this service must always be able to make.
+  - model: authentik_core.group
+    state: present
+    identifiers:
+      name: meowhub-token-bridge
+    attrs:
+      is_superuser: true
+    id: token-bridge-group
+
+  - model: authentik_core.user
+    state: present
+    identifiers:
+      username: meowhub-token-bridge
+    attrs:
+      name: meowhub token bridge (service account)
+      type: service_account
+      is_active: true
+      groups:
+        - !KeyOf token-bridge-group
+    id: token-bridge-service-account
+
+  - model: authentik_core.token
+    state: present
+    identifiers:
+      identifier: meowhub-token-bridge-api-token
+    attrs:
+      user: !KeyOf token-bridge-service-account
+      intent: api
+      expiring: false
+    id: token-bridge-api-token

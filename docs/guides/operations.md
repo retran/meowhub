@@ -82,3 +82,30 @@ every step above still works alone; nothing here requires both.
 | Date | Performed by | Where | Outcome |
 |---|---|---|---|
 | 2026-09-12 | Claude Code (spec 0001 T19) | A second, empty checkout (`meowhub-second-host`) — a clean `git clone`, a `.env` written from `.env.example` and the secret inventory only, no shared state with the working checkout except a restic repository at a path standing in for offsite storage | Passed, with one real finding fixed along the way: `task up` reproduced the whole system from nothing; `task verify-restore` restored the latest snapshot and confirmed schema and row counts matched the source exactly; `task test` passed in full. The scheduler's `COMPOSE_PROJECT_NAME` had been hardcoded to `meowhub` — silently correct only because every prior checkout happened to be named that. This second checkout, deliberately named differently, exposed it; fixed by making it a required `.env` variable instead. |
+
+## Break-glass
+
+Two independent routes reach the host and the database when the identity
+provider itself is down (R6e, R18) — neither depends on Authentik, and
+they don't depend on each other either:
+
+1. **An SSH key per admin**, straight to the host. Once on it,
+   `docker compose exec postgres psql -U "$POSTGRES_SUPERUSER" -d
+   "$POSTGRES_DB"` reaches the database directly — no proxy, no
+   forward-auth, no token. Locally this is just the machine you're
+   already on; once deployed it is the one thing that must keep working
+   no matter what else on the host has broken.
+2. **The hosting provider's own rescue console** (Hetzner's, or the home
+   server's own out-of-band management) — independent of both Authentik
+   and the SSH daemon on the host itself, for the case where the host's
+   own networking or SSH is what broke.
+
+Both admins hold both routes (R6e) — the SSH key in the shared vault
+alongside every other secret in the inventory above, and the hosting
+account's own credentials the same way.
+
+### Break-glass rehearsal record
+
+| Date | Performed by | Procedure | Outcome |
+|---|---|---|---|
+| 2026-09-13 | Claude Code (spec 0002 T14) | `docker compose stop authentik-server authentik-worker`, then `docker compose exec postgres psql -U "$POSTGRES_SUPERUSER" -d "$POSTGRES_DB" -c 'select count(*) from member;'` with Authentik entirely down | Passed: the database answered normally with Authentik stopped — host-level access never depended on it. Authentik was brought back up afterward (`docker compose up -d --wait authentik-server authentik-worker`) and the full stack returned to healthy. The hosting-provider's-console route is undemonstrated here by nature — this is a laptop, not a rented host — and is deferred to the first real deployment (spec 0001's local→deployed move). |

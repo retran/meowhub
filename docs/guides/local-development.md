@@ -221,15 +221,115 @@ Kuma's compose service name when it's set.
 configured on paper: it checks the crontab, then actually runs the exact
 command cron would, from inside the scheduler container.
 
-## The first admin
+## The identity boundary
 
-`task scaffold-admin` (`scripts/scaffold-admin.sh`) creates the first admin
-from `SCAFFOLD_ADMIN_EMAIL`/`SCAFFOLD_ADMIN_PASSWORD`, hashed with
-pgcrypto's bcrypt and marked initial, and refuses outright if any account
-already exists (spec 0001 T17, R14e). `admin_account` (migration
-`20260912000004_admin_scaffold.sql`) is a deliberately minimal scaffold —
-just enough to prove the mechanism before any identity design exists; spec
-0002 replaces it with the real accounts/members/roles schema.
+Authentik, its own database, and the token bridge (ADR 0041) are built
+entirely from committed blueprints (`authentik/blueprints/`) — the
+`admin`/`household` groups, a passkey enrollment path, a Reputation
+Policy gating a Deny stage after five failed passwords (Enterprise's
+"Account Lockdown" stage is not an option — R17/A33 forbid any paid
+feature), and the household app's own Proxy Provider. `scripts/
+authentik-shell.sh` and `scripts/authentik-curl.sh` reach Authentik's
+Django shell and its REST API respectively, the same "borrow the target
+container's network namespace" trick as `scripts/kuma-run.sh`.
+
+The full request path for the data API — Authentik forward-auth, the
+token bridge, PostgREST — is wired in `proxy/Caddyfile` under `/rest/*`
+(spec 0002 T9; the household app itself is spec 0006's). `scripts/
+authentik-e2e-signin.py` drives a real sign-in through that entire path,
+run from the host against the proxy's published port, the same way a
+browser would: identification, password, the OAuth authorize/callback
+dance Authentik's Proxy Provider does for its own application, and
+finally a request that reaches PostgREST with the member's own row
+coming back.
+
+**A known Authentik limitation, not a meowhub bug**
+([goauthentik/authentik#12503](https://github.com/goauthentik/authentik/issues/12503)):
+on a non-standard HTTPS port (`PROXY_HTTPS_PORT`, `8443` locally), the
+OAuth authorize redirect Authentik generates for itself is missing the
+scheme and port — it comes out as a bare `http://localhost/...` instead
+of `https://localhost:8443/...`, which both a script and a real browser
+will fail to follow as-is. `authentik-e2e-signin.py` corrects it
+client-side to prove the rest of the chain is genuinely sound; a human
+hitting this in a browser during local sign-in should edit the address
+bar to add `https://` and `:8443` before continuing. A real deployment on
+the standard port 443 does not hit this at all.
+
+## Admin-only surfaces
+
+n8n's editor and Uptime Kuma's dashboard are admin-only (R17a). Both sit
+behind the same Authentik forward-auth check every other route uses, plus
+a second check in `proxy/Caddyfile`: a `forward_auth` call to the token
+bridge's `/require-group/admin`, which answers 200 or 403 depending on
+whether the signed-in subject holds the `admin` group — a non-2xx aborts
+the request with that status, the same chaining `/rest/*` already used
+for the token bridge proper.
+
+That second check does **not** use Authentik's own `X-Authentik-Groups`
+forward-auth response header, even though Caddy's `copy_headers` makes it
+available for exactly this. A real bug found in this slice: the header's
+presence turned out to depend on which OAuth scopes happened to be
+negotiated for a given request — the same Proxy Provider, the same signed-in
+user, omitted it entirely for one path while including it for another. The
+token bridge instead queries Authentik's own API directly
+(`GET /api/v3/core/users/`), authenticated as a dedicated service account
+(`authentik/blueprints/04-token-bridge-account.yaml`) whose own group is a
+superuser group — a deliberate choice for a trusted internal service that
+must always be able to make this read, the same trust level n8n and
+Authentik's own containers already get by connecting to PostgreSQL as its
+superuser. `scripts/configure-token-bridge.sh` writes the service
+account's generated API token into `.env` on `task up`, the same
+generated-credential pattern `scripts/configure-monitoring.sh` uses for
+Kuma's push URLs.
+
+Uptime Kuma's own login is disabled entirely
+(`scripts/configure-monitoring.sh`, `disableAuth: true`) — the boundary
+above is its only gate. Its push-heartbeat endpoint was never
+login-gated to begin with (token-scoped by design), so this removes no
+protection a heartbeat relied on. Authentik's own admin interface is the
+third surface R17a's table names, and needs no additional gating here: it
+authenticates itself, which is deliberately self-referential (if it is
+misconfigured, the boundary and its own admin are lost together — exactly
+why the break-glass path in R18/T14 exists, and why this configuration is
+blueprints rather than clicks).
+
+## Accounts: creation, forced password change, deactivation
+
+There is no self-service sign-up (R1) — `scripts/create-member.sh <role>
+<email> [admin_member_id]` is the only way a member's account comes to
+exist, in Authentik and in `member`/`member_identity` together. Every
+account after the first needs a real admin's own member id, attributed in
+the audit log the same as any other admin action; the very first account
+ever has none to give, so that one case (`member` holds no rows yet)
+writes with a fixed bootstrap actor instead and refuses outright once any
+account exists (R14a/b) — `task scaffold-admin` (`scripts/
+scaffold-admin.sh`) is just this same mechanism's bootstrap invocation,
+supplying `SCAFFOLD_ADMIN_EMAIL`/`SCAFFOLD_ADMIN_PASSWORD` from the
+environment.
+
+The password an admin sets is temporary (R1d): the account reaches
+nothing until it is changed. Authentik has no built-in "must change"
+flag, so `authentik/blueprints/05-forced-password-change.yaml` reuses the
+two stages its own self-service `default-password-change` flow already
+has (a password prompt, then a write) by binding them into
+`default-authentication-flow` too, gated by a policy comparing the
+account's `password_change_date` (a real column, updated by Authentik's
+own `set_password()` on every change) against `password_set_by_admin_at`,
+an attribute `create-member.sh` records right after setting the
+temporary one. Equal means nothing has changed the password since the
+admin set it; changing it moves `password_change_date` and the gate
+opens on its own — no separate step ever clears anything.
+
+A departure is a designed event, never a deletion (ADR 0026):
+`scripts/deactivate-member.sh <admin_member_id> <member_id>` sets
+`member.active = false` (the row stays, so every past transaction keeps
+its submitter), disables the Authentik account, ends every session it
+currently holds (disabling `is_active` alone does not invalidate a
+cookie already issued), and revokes its passkeys. The token bridge also
+checks `member.active` directly and refuses to mint for an inactive
+member on the very next request — a narrow defence for the gap between
+deactivation and Authentik's own account state catching up, not the
+primary mechanism.
 
 ## CI
 

@@ -16,6 +16,11 @@ tasks:
       - '{{.COMPOSE}} --profile local up -d --wait postgres'
       - task: migrate
       - '{{.COMPOSE}} --profile local up -d --wait model-gateway-stub'
+      - '{{.COMPOSE}} --profile local up -d --wait authentik-server'
+      - '{{.COMPOSE}} --profile local up -d --wait authentik-worker'
+      - bash scripts/configure-token-bridge.sh
+      - '{{.COMPOSE}} --profile local up -d --wait token-bridge'
+      - '{{.COMPOSE}} --profile local up -d --wait postgrest'
       - '{{.COMPOSE}} --profile local up -d --wait n8n'
       - bash scripts/import-workflows.sh
       - '{{.COMPOSE}} restart n8n'
@@ -34,6 +39,8 @@ tasks:
     desc: Apply pending migrations (dbmate, containerised — ADR 0018)
     cmds:
       - '{{.COMPOSE}} run --rm migrate --migrations-dir /db/migrations --schema-file /out/schema.sql up'
+      - '{{.COMPOSE}} up -d --wait postgres'
+      - bash scripts/set-authenticator-password.sh
 
   migrate:new:
     desc: 'Create a new migration: task migrate:new -- name_of_migration'
@@ -58,6 +65,7 @@ tasks:
       - task: test:restore
       - task: test:drift-schedule
       - task: test:scaffold-admin
+      - task: test:member-lifecycle
 
   test:db:
     desc: pgTAP against a throwaway database — created, migrated, seeded, torn down
@@ -81,6 +89,13 @@ tasks:
       - bash scripts/test-health-check.sh
       - bash scripts/test-telegram-dedup.sh
       - bash scripts/test-model-gateway.sh
+      - bash scripts/test-authentik-blueprints.sh
+      - bash scripts/test-authentik-lockout.sh
+      - bash scripts/test-token-bridge.sh
+      - bash scripts/test-postgrest.sh
+      - bash scripts/test-proxy-path.sh
+      - bash scripts/test-admin-surfaces.sh
+      - bash scripts/test-telegram-linking.sh
 
   test:ingress:
     desc: The boundary — no container port reachable except through the proxy, TLS terminates there (spec 0001 T11, A6)
@@ -109,9 +124,15 @@ tasks:
       - bash scripts/test-drift-schedule.sh
 
   test:scaffold-admin:
-    desc: The first admin, once — a second run refused, a missing variable named (spec 0001 T17, R14e)
+    desc: The first admin, once — a second run refused, a missing variable named (spec 0002 T13, R14a/b)
     cmds:
       - bash scripts/test-scaffold-admin.sh
+
+  test:member-lifecycle:
+    desc: A temporary password reaches nothing until changed; deactivation ends access immediately (spec 0002 T13, A1b/A17)
+    cmds:
+      - bash scripts/test-forced-password-change.sh
+      - bash scripts/test-deactivation.sh
 
   export:
     desc: Export n8n workflows to this repository (ADR 0010)

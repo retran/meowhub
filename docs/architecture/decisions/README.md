@@ -159,3 +159,4 @@ Decisions scoped to a single feature live in that feature's `plan.md`.
 | [0038](0038-conversation-state-lives-in-the-database.md) | Conversation state lives in PostgreSQL, never in the workflow engine | accepted | 2026-09-12 |
 | [0039](0039-the-agents-tools-are-a-declared-contract.md) | The agent's tools are a declared, validated contract in this repository | accepted | 2026-09-12 |
 | [0040](0040-workflows-are-small-named-and-composed.md) | Workflows are small, named by what they do, and composed rather than branched | accepted | 2026-09-12 |
+| [0041](0041-forward-auth-token-bridge.md) | Authentik authenticates the session; a token bridge mints the PostgREST JWT | accepted | 2026-09-12 |

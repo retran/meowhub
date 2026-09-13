@@ -1,0 +1,26 @@
+version: 1
+metadata:
+  name: meowhub household app boundary
+entries:
+  # The data API's own boundary (spec 0002 T9, R17a's "household app" row):
+  # forward_single ties the check to this exact external host, the proxy's
+  # own address — there is no separate app host yet (spec 0006 builds one),
+  # so this guards the /rest path Caddy exposes for it.
+  - model: authentik_providers_proxy.proxyprovider
+    state: present
+    identifiers:
+      name: meowhub-app-provider
+    attrs:
+      mode: forward_single
+      external_host: !Env [AUTHENTIK_APP_EXTERNAL_HOST, "https://localhost:8443"]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-provider-invalidation-flow]]
+    id: app-provider
+
+  - model: authentik_core.application
+    state: present
+    identifiers:
+      slug: meowhub-app
+    attrs:
+      name: meowhub household app
+      provider: !KeyOf app-provider

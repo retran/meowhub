@@ -1,0 +1,91 @@
+{
+  "active": false,
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Wrap",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Wrap": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Dispatch",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "tgwebhook00001",
+  "meta": null,
+  "name": "telegram-webhook",
+  "nodes": [
+    {
+      "credentials": {
+        "telegramApi": {
+          "id": "tgapicred00001",
+          "name": "Telegram (household bot)"
+        }
+      },
+      "id": "w0000000-0000-4000-8000-000000000001",
+      "name": "Telegram Trigger",
+      "parameters": {
+        "additionalFields": {},
+        "updates": [
+          "message"
+        ]
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "webhookId": "telegram-webhook"
+    },
+    {
+      "id": "w0000000-0000-4000-8000-000000000002",
+      "name": "Wrap",
+      "parameters": {
+        "jsCode": "return [{ json: { update: $json, source: 'webhook' } }];"
+      },
+      "position": [
+        280,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "w0000000-0000-4000-8000-000000000003",
+      "name": "Dispatch",
+      "parameters": {
+        "options": {},
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "tgdispatch00001"
+        }
+      },
+      "position": [
+        560,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3
+    }
+  ],
+  "pinData": null,
+  "settings": {},
+  "sourceWorkflowId": null
+}

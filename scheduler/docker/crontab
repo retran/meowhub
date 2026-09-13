@@ -1,0 +1,4 @@
+# Drift detection, once daily (spec 0001 T16, R13). Runs inside /workspace,
+# the repository bind-mounted read-only, using the same scripts and
+# Taskfile verbs a developer would from the host.
+0 3 * * * cd /workspace && bash scripts/detect-drift.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

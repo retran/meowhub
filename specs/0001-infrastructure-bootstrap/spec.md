@@ -1,7 +1,7 @@
 ---
 id: 0001
 title: Infrastructure bootstrap
-status: approved
+status: done
 created: 2026-09-12
 updated: 2026-09-12
 owner: owner

@@ -1,0 +1,86 @@
+{
+  "active": true,
+  "connections": {
+    "Call gateway": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Call gateway",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "modelgwsmoke001",
+  "meta": null,
+  "name": "model-gateway-smoke-test",
+  "nodes": [
+    {
+      "id": "9a3c1f00-0000-4000-8000-000000000001",
+      "name": "Webhook",
+      "parameters": {
+        "httpMethod": "GET",
+        "options": {},
+        "path": "model-gateway-smoke-test",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "model-gateway-smoke-test"
+    },
+    {
+      "id": "9a3c1f00-0000-4000-8000-000000000002",
+      "name": "Call gateway",
+      "parameters": {
+        "jsonBody": "={{ { \"model\": \"meowhub-smoke-test\", \"messages\": [{ \"role\": \"user\", \"content\": \"ping\" }] } }}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "={{ $env.OPENROUTER_BASE_URL }}/chat/completions"
+      },
+      "position": [
+        280,
+        0
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    },
+    {
+      "id": "9a3c1f00-0000-4000-8000-000000000003",
+      "name": "Respond",
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "position": [
+        560,
+        0
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1
+    }
+  ],
+  "pinData": null,
+  "settings": {},
+  "sourceWorkflowId": null
+}

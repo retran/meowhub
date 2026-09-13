@@ -1,0 +1,163 @@
+# meowhub — one Compose file, unchanged between the rented host and the home
+# server (ADR 0002); only .env and DNS differ. Services join this file as
+# their phase in docs/implementation-plan.md arrives — today, PostgreSQL only.
+
+services:
+  postgres:
+    build: ./db/docker      # PostgreSQL + pgTAP, one image everywhere (see db/docker/Dockerfile)
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_SUPERUSER}
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/docker/init:/docker-entrypoint-initdb.d:ro
+    # No published port (spec 0001 T11 / R6): reachable only from other
+    # containers on this Compose network, never directly from the host.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    profiles: ['local', 'deployed']
+
+  migrate:
+    image: ghcr.io/amacneil/dbmate:2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    volumes:
+      - ./db/migrations:/db/migrations:ro
+      - ./db:/out
+    command: ['--migrations-dir', '/db/migrations', '--schema-file', '/out/schema.sql', 'up']
+    profiles: ['local', 'deployed']
+
+  n8n:
+    build: ./n8n/docker    # n8n + the prompt/tool mount check (see n8n/docker/Dockerfile)
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: ${N8N_PORT:-5678}
+      N8N_BASIC_AUTH_ACTIVE: ${N8N_BASIC_AUTH_ACTIVE:-true}
+      N8N_BASIC_AUTH_USER: ${N8N_BASIC_AUTH_USER}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_BASIC_AUTH_PASSWORD}
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      # A fixed platform constant, not a deployment setting (ADR 0034): n8n's
+      # own database is never the household's (ADR 0004), created by
+      # db/docker/init/10-create-n8n-database.sh on first boot.
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: ${POSTGRES_SUPERUSER}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      # Workflows read configuration (the delivery mode, the bot token) from
+      # the environment by design (ADR 0034) — this instance is single-tenant
+      # and behind our own auth boundary, so allowing $env in Code nodes here
+      # is a deployment choice, not exposure to untrusted workflow authors.
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: 'false'
+      TELEGRAM_LOCAL_BOT_TOKEN: ${TELEGRAM_LOCAL_BOT_TOKEN}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_DELIVERY_MODE: ${TELEGRAM_DELIVERY_MODE}
+      # Points at the local stub by default so nothing here costs money or
+      # needs a real key until a developer deliberately changes it (spec
+      # 0001 T18, ADR 0015).
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./prompts:/prompts:ro
+      - ./tools:/tools:ro
+      - ./workflows:/workflows:ro
+    # No published port (spec 0001 T11 / R6): reachable only through the
+    # proxy below, never directly from the host.
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q -O- http://localhost:5678/healthz || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    profiles: ['local', 'deployed']
+
+  proxy:
+    build: ./proxy/docker   # Caddy + the rate-limit plugin (see proxy/docker/Dockerfile)
+    restart: unless-stopped
+    depends_on:
+      n8n:
+        condition: service_healthy
+    environment:
+      PUBLIC_HOSTNAME: ${PUBLIC_HOSTNAME}
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - '${PROXY_HTTP_PORT}:80'
+      - '${PROXY_HTTPS_PORT}:443'
+    healthcheck:
+      test: ['CMD', 'wget', '--no-check-certificate', '-q', '-O-', 'https://localhost/healthz']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    profiles: ['local', 'deployed']
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    volumes:
+      - kuma_data:/app/data
+    # Loopback only, deliberately not through the proxy: this is admin-only
+    # tooling (ADR 0020), never a household-facing surface, so R6's boundary
+    # requirement is trivially met by never publishing it — reached by an
+    # SSH tunnel once deployed, same as on the laptop (spec 0001 T13).
+    ports:
+      - '127.0.0.1:${UPTIME_KUMA_PORT}:3001'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:3001/ || exit 1']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    profiles: ['local', 'deployed']
+
+  model-gateway-stub:
+    build: ./model-gateway/docker   # see model-gateway/docker/server.py — spec 0001 T18, ADR 0015
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:${MODEL_GATEWAY_STUB_PORT}:8090'
+    healthcheck:
+      test: ['CMD', 'python3', '-c', "import urllib.request; urllib.request.urlopen('http://localhost:8090/')"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    profiles: ['local', 'deployed']
+
+  scheduler:
+    build: ./scheduler/docker   # cron + docker CLI, the one container allowed to run jobs (see scheduler/docker/Dockerfile)
+    restart: unless-stopped
+    depends_on:
+      n8n:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      # The compose project name is normally inferred from the directory
+      # basename holding compose.yaml — "workspace" in here, since the repo
+      # is bind-mounted at /workspace, not whatever the host's checkout is
+      # actually named. Passed through explicitly so `docker compose exec`
+      # inside this container finds the same running services the host's
+      # own invocations do, whatever this checkout is called.
+      COMPOSE_PROJECT_NAME: ${COMPOSE_PROJECT_NAME}
+    volumes:
+      - .:/workspace:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    profiles: ['local', 'deployed']
+
+volumes:
+  postgres_data:
+  n8n_data:
+  caddy_data:
+  caddy_config:
+  kuma_data:

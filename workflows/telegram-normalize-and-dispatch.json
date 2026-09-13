@@ -1,0 +1,192 @@
+{
+  "active": true,
+  "connections": {
+    "Already Seen?": {
+      "main": [
+        [],
+        [
+          {
+            "index": 0,
+            "node": "Reply",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Dedup": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Already Seen?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Normalize": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Skip?",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Skip?": {
+      "main": [
+        [],
+        [
+          {
+            "index": 0,
+            "node": "Dedup",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Normalize",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "tgdispatch00001",
+  "meta": null,
+  "name": "telegram-normalize-and-dispatch",
+  "nodes": [
+    {
+      "id": "d0000000-0000-4000-8000-000000000001",
+      "name": "When Executed by Another Workflow",
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000002",
+      "name": "Normalize",
+      "parameters": {
+        "jsCode": "const update = $json.update;\nconst msg = update.message || update.edited_message;\nif (!msg) {\n  return [{ json: { skip: true, reason: \"no message in update\" } }];\n}\nreturn [{\n  json: {\n    update_id: update.update_id,\n    channel_id: String(msg.from.id),\n    chat_id: msg.chat.id,\n    message_thread_id: msg.message_thread_id || null,\n    text: msg.text || null,\n    has_photo: !!msg.photo,\n    has_voice: !!msg.voice,\n    language_hint: msg.from.language_code || \"ru\",\n    source: $json.source\n  }\n}];"
+      },
+      "position": [
+        280,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000003",
+      "name": "Skip?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.skip }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        560,
+        0
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000004",
+      "name": "Dedup",
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.seenUpdateIds) staticData.seenUpdateIds = [];\nconst id = $json.update_id;\nconst already = staticData.seenUpdateIds.includes(id);\nif (!already) {\n  staticData.seenUpdateIds.push(id);\n  if (staticData.seenUpdateIds.length > 5000) {\n    staticData.seenUpdateIds = staticData.seenUpdateIds.slice(-2000);\n  }\n}\nreturn [{ json: { ...$json, duplicate: already } }];"
+      },
+      "position": [
+        560,
+        200
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000005",
+      "name": "Already Seen?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.duplicate }}",
+              "operator": {
+                "operation": "true",
+                "singleValue": true,
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        800,
+        200
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000006",
+      "name": "Reply",
+      "parameters": {
+        "jsonBody": "={{ { chat_id: $json.chat_id, ...($json.message_thread_id ? { message_thread_id: $json.message_thread_id } : {}), text: ($json.language_hint === \"ru\" ? \"Meow \u043d\u0430 \u0441\u0432\u044f\u0437\u0438. \u0418\u043d\u0444\u0440\u0430\u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0441\u043e\u0431\u0440\u0430\u043d\u0430, \u043f\u0440\u043e\u0434\u0443\u043a\u0442 \u0435\u0449\u0451 \u0432\u043f\u0435\u0440\u0435\u0434\u0438.\" : \"Meow is here. The infrastructure works; the product comes next.\") } }}",
+        "method": "POST",
+        "options": {},
+        "sendBody": true,
+        "specifyBody": "json",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_DELIVERY_MODE === 'polling' ? $env.TELEGRAM_LOCAL_BOT_TOKEN : $env.TELEGRAM_BOT_TOKEN }}/sendMessage"
+      },
+      "position": [
+        1040,
+        100
+      ],
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2
+    }
+  ],
+  "pinData": null,
+  "settings": {},
+  "sourceWorkflowId": null
+}

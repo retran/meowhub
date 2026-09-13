@@ -1,0 +1,36 @@
+# meowhub ingress (ADR 0002, spec 0001 T11/T12). One site block, one hostname.
+# Caddy decides TLS automatically from {$PUBLIC_HOSTNAME}: a name that isn't
+# a public domain (localhost, .local, a bare IP) gets its own locally-trusted
+# certificate authority with no configuration; a real domain gets ACME.
+{
+	order rate_limit before basicauth
+}
+
+# n8n is the only application behind this proxy today — both its public
+# webhook paths and its own editor UI, gated by n8n's own login
+# (N8N_BASIC_AUTH_ACTIVE) until spec 0002 puts a real identity provider in
+# front of it (R17a).
+{$PUBLIC_HOSTNAME} {
+	@webhooks path /webhook/* /webhook-test/* /healthz
+
+	handle @webhooks {
+		# R5a: the webhook path is public and findable, so a flood costs
+		# workflow executions and log volume before spec 0002 ever gets to
+		# check whether the sender is linked. Per source address, generous
+		# enough that Telegram's own traffic (and this repository's tests)
+		# never trips it in normal use.
+		rate_limit {
+			zone public_edge {
+				key    {remote_host}
+				events 20
+				window 10s
+			}
+		}
+		reverse_proxy n8n:5678
+	}
+
+	# Everything else — the editor UI — is n8n's own admin surface, behind
+	# its own login. Not rate-limited: only an authenticated admin gets far
+	# enough to matter.
+	reverse_proxy n8n:5678
+}

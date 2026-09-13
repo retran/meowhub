@@ -1,0 +1,9 @@
+{
+  "health_check_reply": "meowhub is here. October 2026, all green.",
+  "backup_success": "The nightly backup succeeded: local and offsite.",
+  "backup_failure": "The backup failed: {{reason}}. The offsite copy was not updated.",
+  "restore_verify_success": "Restore verification passed: schema, data and files match.",
+  "restore_verify_failure": "Restore verification failed: {{reason}}. This backup is not counted as good.",
+  "drift_detected": "{{component}}'s configuration differs from what is committed.",
+  "heartbeat_missing": "The \"{{job}}\" job did not report in time. Silence is the alarm."
+}

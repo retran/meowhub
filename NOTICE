@@ -1,0 +1,51 @@
+meowhub
+Copyright 2026 Andrew Vasilyev
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use
+this file except in compliance with the License. You may obtain a copy of the
+License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+This repository contains the household's own work: specifications, architecture
+decision records, database migrations, workflow definitions, application code and
+prompts. It contains no third-party source except where noted below.
+
+## Components this system runs, and their licences
+
+These are deployed as separate services and are not distributed as part of this
+work. Their licences govern their own use, not this repository.
+
+| Component | Licence | Note |
+|---|---|---|
+| PostgreSQL | PostgreSQL Licence | |
+| n8n | Sustainable Use Licence | Source-available, not OSI. Permits internal and personal use; prohibits distributing n8n itself commercially. This repository contains only our own workflow definitions, not n8n |
+| PostgREST | MIT | |
+| authentik | MIT | |
+| Uptime Kuma | MIT | |
+| dbmate | MIT | |
+| restic | BSD 2-Clause | |
+| cloudflared | Apache 2.0 | |
+
+## Components whose source is copied into this repository
+
+Where a component's source is vendored rather than depended on, its own licence
+and copyright notice are retained in the copied files, and this work's Apache 2.0
+licence does not override them.
+
+| Component | Licence | Where |
+|---|---|---|
+| shadcn/ui components | MIT | Copied into the household app by design (ADR 0022); each file keeps its notice |
+| Radix UI, Recharts, Next.js, Tailwind CSS | MIT | Ordinary dependencies of the app |
+
+## Development tools
+
+| Tool | Licence | Note |
+|---|---|---|
+| Onlook | Apache 2.0 | Visual editing of the app's source (ADR 0007); a development tool, not shipped |
+
+## What this repository deliberately does not contain
+
+No secrets, no credentials, and no real household data: no statements, receipts,
+balances or transactions. Test fixtures derived from real statement files are
+anonymised before they are committed (ADR 0015).

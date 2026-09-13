@@ -1,0 +1,10 @@
+.DS_Store
+*.log
+
+# personal Claude Code settings — not committed
+.claude/settings.local.json
+
+# local environment and secrets
+.env
+.env.*
+!.env.example

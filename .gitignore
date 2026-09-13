@@ -8,3 +8,10 @@
 .env
 .env.*
 !.env.example
+
+# local Postgres data dir if ever created inside the repo, and scratch db url
+/pgdata/
+
+# local file storage and backup staging/repositories (spec 0001 T7, T14) —
+# household data, never committed
+/.data/

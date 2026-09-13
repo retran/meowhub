@@ -70,3 +70,16 @@ revisit first.
   (ADR 0024).
 - **No redundancy anywhere**, single host, single database, and that is a
   deliberate trade for a household ledger.
+
+## Heartbeat windows
+
+How long a scheduled job's silence is tolerated before Uptime Kuma alerts
+(ADR 0020). Deliberately generous to start — a too-tight window produces false
+alarms, which is how alerting dies — and tightened only once the job's real
+cadence is settled.
+
+| Job | Window | Why that number |
+|---|---|---|
+| Drift check | **24 h** | Runs daily at 03:00 from the scheduler container (spec 0001 T16); the window is one full cycle, so a single slow or missed run does not itself alarm |
+| Nightly backup | **36 h** | Meant to run nightly (spec 0001 T14); half again as long as its own cadence so one slow night is not a false alarm, tightened once it actually runs on a schedule |
+| Monthly restore verification | **24 days** | Meant to run monthly (spec 0001 T15); Kuma's own interval cap (2,073,600 s) is the actual ceiling here, not a chosen number — the closest this window gets to "monthly, generous" |

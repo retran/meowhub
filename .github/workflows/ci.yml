@@ -1,0 +1,60 @@
+# CI runs the exact same commands a person runs locally (ADR 0034): docker
+# compose and Task, nothing installed natively on the runner beyond those.
+# Red on a broken migration from the first commit (spec 0001, T4).
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+
+      - name: Write a CI .env
+        run: |
+          cp .env.example .env
+          cat >> .env <<'ENV'
+          MEOWHUB_ENV=local
+          COMPOSE_PROJECT_NAME=meowhub
+          POSTGRES_HOST=postgres
+          POSTGRES_PORT=5432
+          POSTGRES_DB=meowhub
+          POSTGRES_SUPERUSER=meowhub
+          POSTGRES_SUPERUSER_PASSWORD=ci-password
+          DATABASE_URL=postgres://meowhub:ci-password@postgres:5432/meowhub?sslmode=disable
+          N8N_ENCRYPTION_KEY=ci-encryption-key
+          N8N_HOST=localhost
+          N8N_PORT=5678
+          N8N_BASIC_AUTH_ACTIVE=true
+          N8N_BASIC_AUTH_USER=admin
+          N8N_BASIC_AUTH_PASSWORD=ci-password
+          PUBLIC_HOSTNAME=localhost
+          PROXY_HTTP_PORT=8080
+          PROXY_HTTPS_PORT=8443
+          UPTIME_KUMA_PORT=3001
+          UPTIME_KUMA_URL=http://127.0.0.1:3001
+          UPTIME_KUMA_ADMIN_USERNAME=admin
+          UPTIME_KUMA_ADMIN_PASSWORD=ci-password
+          FILE_STORAGE_PATH=./.data/files
+          RESTIC_REPOSITORY=./.data/restic-local
+          RESTIC_PASSWORD=ci-password
+          TELEGRAM_ADMIN_CHAT_ID=0
+          OPENROUTER_BASE_URL=http://model-gateway-stub:8090
+          MODEL_GATEWAY_STUB_PORT=8091
+          ENV
+
+      - name: task up
+        run: task up
+
+      - name: task test
+        run: task test
+
+      - name: task down
+        if: always()
+        run: task down

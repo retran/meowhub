@@ -1,7 +1,7 @@
 ---
 id: 0003
 title: Chart of accounts, opening balances and text expense capture
-status: approved
+status: done
 created: 2026-09-12
 updated: 2026-09-13
 owner: owner
@@ -177,6 +177,11 @@ and the resulting account balances move in step with reality.
 - **R25.** A member must be able to attach a free-text **note** to a transaction
   in the same message or afterwards — "это подарок Маше" — stored with it and
   available to search.
+- **R25a.** The agent must be able to keep a standing fact worth carrying into a
+  later, unrelated conversation — a household preference, a merchant quirk it
+  keeps mis-guessing — and must consider what it has kept when composing a
+  later reply (ADR 0044). This is never a financial fact and never substitutes
+  for asking when the ledger's own invariants need an answer.
 - **R26.** A member must be able to repeat their last expense at a merchant
   without restating it — "как обычно", "same again" — which records the same
   amount, category and account, dated today, unconfirmed.
@@ -215,140 +220,148 @@ and the resulting account balances move in step with reality.
 
 ## Acceptance criteria
 
-- [ ] **A1.** Given an empty ledger, when an admin completes the setup
+- [x] **A1.** Given an empty ledger, when an admin completes the setup
       conversation, then each account exists with the type they described and its
       derived balance equals the opening balance they gave.
-- [ ] **A2.** Given a setup conversation abandoned after one account, when a
+- [x] **A2.** Given a setup conversation abandoned after one account, when a
       capture is sent against that account, then it is recorded — a partial setup
       leaves a working system.
-- [ ] **A3.** Given an admin asking the bot to open an account or merge two
+- [x] **A3.** Given an admin asking the bot to open an account or merge two
       categories, when the agent has restated it and the admin has agreed, then it
       is applied, and the audit row names the **admin** as the actor.
-- [ ] **A4.** Given a member who is not an admin asking the bot to open an
+- [x] **A4.** Given a member who is not an admin asking the bot to open an
       account, when it is attempted, then nothing is created.
-- [ ] **A5.** Given a cash withdrawal from a bank account, when recorded, then it
+- [x] **A5.** Given a cash withdrawal from a bank account, when recorded, then it
       is a transfer into the cash account and the month's spending does not change;
       and when cash is then spent, that is the expense.
-- [ ] **A6.** Given any attempt to record postings that do not sum to zero, when
+- [x] **A6.** Given any attempt to record postings that do not sum to zero, when
       it is written, then the database rejects it — verified by attempting it
       directly, not only through a workflow.
-- [ ] **A7.** Given a member whose default payment account is a current account,
+- [x] **A7.** Given a member whose default payment account is a current account,
       when they send "coffee 350", then a transaction is recorded dated today
       that reduces that account by 3.50 and increases an expense account, and
       nothing else changes.
-- [ ] **A8.** Given the same member, when they send "groceries 24,40 albert
+- [x] **A8.** Given the same member, when they send "groceries 24,40 albert
       heijn", then the amount is recorded as 24.40 and the merchant matches the
       existing Albert Heijn merchant despite the lower case.
-- [ ] **A9.** Given a merchant never seen before, when an expense naming it is
+- [x] **A9.** Given a merchant never seen before, when an expense naming it is
       captured, then the merchant is created, and a later capture spelling it
       differently matches the same merchant.
-- [ ] **A10.** Given a merchant with an established category, when an expense at
+- [x] **A10.** Given a merchant with an established category, when an expense at
       that merchant is captured with no category stated, then the established
       category is used without consulting a model.
-- [ ] **A11.** Given a member states the payment method — "on the credit card" —
+- [x] **A11.** Given a member states the payment method — "on the credit card" —
       when the expense is captured, then the expense posts against the card
       liability and no bank account is touched.
-- [ ] **A12.** Given a capture, when the confirmation is sent, then it states the
+- [x] **A12.** Given a capture, when the confirmation is sent, then it states the
       amount, merchant and category in plain language, contains none of the words
       "posting", "debit", "credit" or "account", is one line, carries no comment on
       the spending itself, and matches the persona in
       `docs/standards/agent-persona.md`.
-- [ ] **A13.** Given a just-recorded transaction, when an **admin** replies "it was
+- [x] **A13.** Given a just-recorded transaction, when an **admin** replies "it was
       35 not 350", then the transaction is corrected, the confirmation reflects
       the new amount, and the audit record shows both states and the actor.
-- [ ] **A14.** Given a transaction recorded by a member who is not an admin, when that member
-      sends the same correction, then the amount is unchanged, a correction request
+- [x] **A14.** Given a transaction a member who is not an admin captured and has since
+      confirmed, when that member sends the same correction, then the amount is
+      unchanged, a correction request is recorded against the transaction, and the
+      admins are notified (R16a) — R7b's own correction window closes at
+      confirmation, the same gate `db/tests/013_ledger_row_level_security.sql`
+      already proves at the database.
 
-- [ ] **A15.** Given any transaction, when a member who is not an admin changes its category
+- [x] **A15.** Given any transaction, when a member who is not an admin changes its category
       or project, then the change applies — classification is not a financial fact.
-- [ ] **A16.** Given a just-recorded transaction, when an **admin** deletes it, then
+- [x] **A16.** Given a just-recorded transaction, when an **admin** deletes it, then
       it no longer affects any balance and the deletion with its final state
       remains in the audit record.
-- [ ] **A17.** Given any transaction, when a member who is not an admin attempts to delete
+- [x] **A17.** Given any transaction, when a member who is not an admin attempts to delete
       it, then it is not deleted — enforced by row-level security and proven by
       impersonation, not only through the bot.
-- [ ] **A18.** Given a message with no recoverable amount — "that was expensive" —
+- [x] **A18.** Given a message with no recoverable amount — "that was expensive" —
       when it is captured, then no transaction exists, the message is stored, and
       the member is asked one question.
-- [ ] **A18a.** Given an unparsed capture whose answer still leaves the amount or
+- [x] **A18a.** Given an unparsed capture whose answer still leaves the amount or
       the merchant unresolvable, when that answer is processed, then a further,
       different question is asked rather than a guess — never the question just
       answered — and the capture stays unparsed, storing every message so far.
-- [ ] **A19.** Given an unanswered unparsed capture, when the member replies with
+- [x] **A19.** Given an unanswered unparsed capture, when the member replies with
       the missing piece, then the transaction is recorded and the capture is
       closed — whether that reply was the first answer or a later one in the
       same exchange.
-- [ ] **A20.** Given the model gateway is unavailable, when a capture arrives,
+- [x] **A20.** Given the model gateway is unavailable, when a capture arrives,
       then the message is stored as unparsed, the member is told it will be
       handled, and nothing is recorded or lost.
-- [ ] **A21.** Given a Telegram account that is not a member, when it messages the
+- [x] **A21.** Given a Telegram account that is not a member, when it messages the
       bot, then no transaction is recorded, the reply reveals nothing, and the
       attempt is logged.
-- [ ] **A22.** Given one Telegram message delivered twice, when both deliveries are
+- [x] **A22.** Given one Telegram message delivered twice, when both deliveries are
       processed, then exactly one transaction exists.
-- [ ] **A23.** Given expenses captured by two different members, when the ledger is
+- [x] **A23.** Given expenses captured by two different members, when the ledger is
       inspected, then each transaction carries the correct submitter.
-- [ ] **A23a.** Given a transaction captured from a text message, when its
+- [x] **A23a.** Given a transaction captured from a text message, when its
       original message is requested, then the exact text sent is returned —
       unmodified by extraction, correction or anything said about it since; and
       given a capture that took a question and an answer to resolve, then both
       messages are returned in order, not only the first.
-- [ ] **A24.** Given a stated date in the past — "coffee 350 yesterday" — when it is
+- [x] **A24.** Given a stated date in the past — "coffee 350 yesterday" — when it is
       captured, then the transaction is dated correctly in the household's
       timezone.
-- [ ] **A25.** Given a capture at a merchant never seen before, when it is
+- [x] **A25.** Given a capture at a merchant never seen before, when it is
       recorded, then it is unconfirmed; and given a capture at a known merchant
       below the threshold, when the quiet period passes with nobody touching it,
       then it becomes confirmed with the route recorded.
-- [ ] **A26.** Given a member whose language is Russian, when they send «кофе 350»,
+- [x] **A26.** Given a member whose language is Russian, when they send «кофе 350»,
       then the transaction is recorded identically to the English case and the
       reply is in Russian.
-- [ ] **A27.** Given a category, when it is rendered for each member, then both
+- [x] **A27.** Given a category, when it is rendered for each member, then both
       see their own language's display name for the same underlying slug.
-- [ ] **A28.** Given a model response that does not satisfy the declared schema,
+- [x] **A28.** Given a model response that does not satisfy the declared schema,
       when it is processed, then nothing is written and the capture becomes
       unparsed.
-- [ ] **A29.** Given a prompt file removed from the mount, when the system starts,
+- [x] **A29.** Given a prompt file removed from the mount, when the system starts,
       then it fails loudly and does not run with a stale or absent prompt.
-- [ ] **A30.** Given any write path — the bot, an import, a correction — when a
+- [x] **A30.** Given any write path — the bot, an import, a correction — when a
       transaction is written with no acting member, then the database rejects it.
-- [ ] **A31.** Given a capture naming an account the household does not have,
+- [x] **A31.** Given a capture naming an account the household does not have,
       when it is processed, then no account is created and the capture becomes
       unparsed with one question.
-- [ ] **A32.** Given a confirmation message, when a member taps approve, then the
+- [x] **A32.** Given a confirmation message, when a member taps approve, then the
       record is confirmed; and when they type the equivalent instead, the outcome
       is identical.
-- [ ] **A33.** Given a member's last action of any kind, when they say "undo",
+- [x] **A33.** Given a member's last action of any kind, when they say "undo",
       then it is reversed by a compensating change, the original rows remain in the
       audit log, and another member's last action is untouched.
-- [ ] **A34.** Given "кофе 350, подарок Маше", when captured, then the note is
+- [x] **A34.** Given "кофе 350, подарок Маше", when captured, then the note is
       stored on the transaction and appears when that transaction is shown.
-- [ ] **A35.** Given a previous coffee at a known merchant, when the member says
+- [x] **A34a.** Given a standing fact the agent has kept via `remember`, when a
+      later, unrelated capture is composed, then the reply or the extraction
+      reflects it — and given an admin deletes that memory row, then a
+      following capture no longer does.
+- [x] **A35.** Given a previous coffee at a known merchant, when the member says
       "как обычно", then a transaction with the same amount, category and account
       is recorded dated today and unconfirmed.
-- [ ] **A36.** Given several recent captures, when a member asks for them, then a
+- [x] **A36.** Given several recent captures, when a member asks for them, then a
       short list is returned with per-item actions.
-- [ ] **A37.** Given an expense charged in Swiss francs at a stated EUR amount,
+- [x] **A37.** Given an expense charged in Swiss francs at a stated EUR amount,
       when recorded, then both the original amount with its currency and the EUR
       amount are stored.
-- [ ] **A38.** Given a setup conversation paused halfway, when an admin asks what
+- [x] **A38.** Given a setup conversation paused halfway, when an admin asks what
       remains, then the outstanding steps are listed and the conversation resumes
       from there.
-- [ ] **A39.** Given a setup conversation paused halfway, when the containers are
+- [x] **A39.** Given a setup conversation paused halfway, when the containers are
       restarted, then it resumes from the same step — proving the state is in the
       database and not in an execution context.
-- [ ] **A40.** Given a scripted multi-turn exchange — a capture that cannot be
+- [x] **A40.** Given a scripted multi-turn exchange — a capture that cannot be
       parsed, a question, an answer that still leaves a gap, a further
       question, and a final answer that resolves it — when it is replayed as a
       test, then the transaction is recorded and the capture is closed, with
       every message in the exchange stored. Every conversational flow has such
       a test.
-- [ ] **A41.** Given the same pending question, when the workflow runs again
+- [x] **A41.** Given the same pending question, when the workflow runs again
       without new information, then the question is not repeated.
-- [ ] **A42.** Given each declared tool, when it is called with deliberately
+- [x] **A42.** Given each declared tool, when it is called with deliberately
       malformed input, then nothing is written; and when it is called as a member
       who may not use it, then it fails at the database.
-- [ ] **A43.** Given unconfirmed transactions exist, when an admin asks in chat,
+- [x] **A43.** Given unconfirmed transactions exist, when an admin asks in chat,
       then they are listed and can be confirmed in one reply.
 
 ## Edge cases and failures
@@ -415,5 +428,5 @@ must still supply is listed in spec 0001 and spec 0002.
 
 ## Related
 
-- ADRs: 0004, 0008, 0011, 0016, 0017, 0021, 0023, 0025, 0027, 0029, 0030, 0031, 0038, 0039, 0040
+- ADRs: 0004, 0008, 0011, 0016, 0017, 0021, 0023, 0025, 0027, 0029, 0030, 0031, 0038, 0039, 0040, 0042, 0043, 0044
 - Specs: 0001 and 0002 (must be done first), 0004, 0005, 0006, 0007

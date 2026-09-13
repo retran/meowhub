@@ -76,7 +76,14 @@ services:
       # secret (crypto, allowed below), the same HS256 shape the token
       # bridge mints for a browser session.
       PGRST_JWT_SECRET: ${PGRST_JWT_SECRET}
-      NODE_FUNCTION_ALLOW_BUILTIN: crypto
+      # http is needed alongside crypto: the capture workflow (spec 0003)
+      # composes several PostgREST lookups and a model-gateway call from a
+      # single Code node rather than a chain of many HTTP Request nodes
+      # for what is fundamentally one step (resolve context, call the
+      # model, write the result). fs is needed to read a prompt from its
+      # read-only mount at /prompts (R11d): the prompt text is a file in
+      # this repository, never pasted into workflow JSON.
+      NODE_FUNCTION_ALLOW_BUILTIN: crypto,http,https,fs,url
     volumes:
       - n8n_data:/home/node/.n8n
       - ./prompts:/prompts:ro

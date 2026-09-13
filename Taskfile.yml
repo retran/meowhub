@@ -41,6 +41,7 @@ tasks:
       - '{{.COMPOSE}} run --rm migrate --migrations-dir /db/migrations --schema-file /out/schema.sql up'
       - '{{.COMPOSE}} up -d --wait postgres'
       - bash scripts/set-authenticator-password.sh
+      - bash scripts/reload-postgrest-schema.sh
 
   migrate:new:
     desc: 'Create a new migration: task migrate:new -- name_of_migration'
@@ -96,6 +97,13 @@ tasks:
       - bash scripts/test-proxy-path.sh
       - bash scripts/test-admin-surfaces.sh
       - bash scripts/test-telegram-linking.sh
+      - bash scripts/test-capture-text.sh
+      - bash scripts/test-setup-conversation.sh
+      - bash scripts/test-structural-change.sh
+      - bash scripts/test-corrections.sh
+      - bash scripts/test-auto-confirm-quiet.sh
+      - bash scripts/test-conveniences.sh
+      - bash scripts/test-admin-queue.sh
 
   test:ingress:
     desc: The boundary — no container port reachable except through the proxy, TLS terminates there (spec 0001 T11, A6)

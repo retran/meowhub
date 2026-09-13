@@ -1,0 +1,24 @@
+{
+  "name": "amend_account",
+  "version": 1,
+  "purpose": "Rename, deactivate, or set new terms on an account. Always an admin's own request (ADR 0031).",
+  "shape": "acts_as",
+  "permission": "hh_admin",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["account_id"],
+    "properties": {
+      "account_id": { "type": "integer" },
+      "name": { "type": ["string", "null"] },
+      "active": { "type": ["boolean", "null"] },
+      "reviewed": { "type": ["boolean", "null"] },
+      "overdraft_limit": { "type": ["integer", "null"] },
+      "credit_limit": { "type": ["integer", "null"] },
+      "interest_rate": { "type": ["number", "null"] },
+      "payment_amount": { "type": ["integer", "null"] },
+      "payment_day": { "type": ["integer", "null"] }
+    }
+  }
+}

@@ -331,6 +331,12 @@ member on the very next request — a narrow defence for the gap between
 deactivation and Authentik's own account state catching up, not the
 primary mechanism.
 
+## Setting up and using the household's own bot
+
+[household-setup.md](household-setup.md) — what the setup conversation
+asks and why. [talking-to-meow.md](talking-to-meow.md) — what a member
+can say, in either language, and what happens (spec 0003).
+
 ## CI
 
 `.github/workflows/ci.yml` runs `task up` and `task test` with the same

@@ -1,0 +1,81 @@
+{
+  "active": true,
+  "connections": {
+    "Auto-Confirm Quiet": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Auto-Confirm Quiet",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "autoconfirm001",
+  "meta": null,
+  "name": "auto-confirm-quiet",
+  "nodes": [
+    {
+      "id": "a0000000-0000-4000-8000-000000000001",
+      "name": "Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "auto-confirm-quiet",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "auto-confirm-quiet"
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000002",
+      "name": "Auto-Confirm Quiet",
+      "parameters": {
+        "jsCode": "// The one scheduled workflow (spec 0003 T12, R7c): a known merchant's\n// own category, below the household's configured threshold, past its\n// configured quiet period -- auto-confirmed via the quiet route. The\n// query below is a convenience filter; transaction_agent_confirm_guard\n// re-checks every one of R7c's conditions at the database, so a bug\n// here can only under-confirm, never wrongly confirm.\nconst crypto = require('crypto');\nconst http = require('http');\nconst { URL } = require('url');\n\nconst PG = 'http://postgrest:3000';\n\nfunction b64url(buf) {\n  return buf.toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n}\n\nfunction mintAgentToken(memberId) {\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const payload = b64url(Buffer.from(JSON.stringify({ role: 'hh_agent', member_id: memberId, exp: Math.floor(Date.now() / 1000) + 60 })));\n  const signingInput = `${header}.${payload}`;\n  const signature = b64url(crypto.createHmac('sha256', $env.PGRST_JWT_SECRET).update(signingInput).digest());\n  return `${signingInput}.${signature}`;\n}\n\nfunction httpJson(method, url, headers, body) {\n  return new Promise((resolve, reject) => {\n    const bodyStr = body !== undefined ? JSON.stringify(body) : undefined;\n    const u = new URL(url);\n    const options = {\n      hostname: u.hostname, port: u.port, path: u.pathname + u.search, method,\n      headers: Object.assign({ 'Content-Type': 'application/json' }, headers, bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),\n    };\n    const req = http.request(options, (res) => {\n      let data = '';\n      res.on('data', (c) => (data += c));\n      res.on('end', () => {\n        let parsed = null;\n        try { parsed = data ? JSON.parse(data) : null; } catch (e) { parsed = data; }\n        resolve({ status: res.statusCode, body: parsed });\n      });\n    });\n    req.on('error', reject);\n    if (bodyStr) req.write(bodyStr);\n    req.end();\n  });\n}\n\nasync function main() {\n  // No member is asking in this moment, but A30 holds regardless: no\n  // write is ever attributed to no one. This runs as the agent acting\n  // under the standing rule the admin who configured the threshold\n  // already gave (ADR 0042's \"compose\" shape, backed by that admin's\n  // own prior authority) -- a read using no member_id at all is the\n  // one call this job makes before it has anyone to act as.\n  const readToken = mintAgentToken(null);\n  const readAuth = { Authorization: `Bearer ${readToken}` };\n  const settingsRes = await httpJson('GET', `${PG}/household_setting?key=in.(auto_confirm_threshold_minor,auto_confirm_quiet_period_hours)&select=key,value,updated_by`, readAuth);\n  const settings = {};\n  for (const row of settingsRes.body || []) settings[row.key] = row;\n  const threshold = Number(settings.auto_confirm_threshold_minor && settings.auto_confirm_threshold_minor.value);\n  const quietHours = Number(settings.auto_confirm_quiet_period_hours && settings.auto_confirm_quiet_period_hours.value);\n  const configuringAdmin = settings.auto_confirm_threshold_minor && settings.auto_confirm_threshold_minor.updated_by;\n\n  if (!threshold || threshold <= 0 || !quietHours || !configuringAdmin) {\n    return [{ json: { confirmed: [], note: 'auto-confirmation is not configured' } }];\n  }\n\n  const token = mintAgentToken(configuringAdmin);\n  const auth = { Authorization: `Bearer ${token}` };\n\n  const cutoff = new Date(Date.now() - quietHours * 3600 * 1000).toISOString();\n  const candidatesRes = await httpJson(\n    'GET',\n    `${PG}/transaction?confirmation_state=eq.unconfirmed&category_source=eq.merchant_default&created_at=lt.${encodeURIComponent(cutoff)}&select=id`,\n    auth\n  );\n  const candidates = candidatesRes.body || [];\n\n  const confirmed = [];\n  for (const candidate of candidates) {\n    const postingsRes = await httpJson('GET', `${PG}/posting?transaction_id=eq.${candidate.id}&amount=gt.0&select=amount`, auth);\n    const expensePosting = (postingsRes.body || [])[0];\n    if (!expensePosting || Math.abs(expensePosting.amount) >= threshold) continue;\n\n    const patched = await httpJson('PATCH', `${PG}/transaction?id=eq.${candidate.id}`, Object.assign({ Prefer: 'return=minimal' }, auth), {\n      confirmation_state: 'confirmed', confirmation_route: 'quiet', confirmed_at: new Date().toISOString(),\n    });\n    if (patched.status >= 200 && patched.status < 300) confirmed.push(candidate.id);\n  }\n\n  return [{ json: { confirmed, checked: candidates.length } }];\n}\n\nreturn main();\n"
+      },
+      "position": [
+        220,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "a0000000-0000-4000-8000-000000000003",
+      "name": "Respond",
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "position": [
+        440,
+        0
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1
+    }
+  ],
+  "pinData": null,
+  "settings": {},
+  "sourceWorkflowId": null
+}

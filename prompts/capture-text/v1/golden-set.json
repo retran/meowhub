@@ -1,0 +1,91 @@
+{
+  "prompt": "capture-text",
+  "version": "capture-text@1",
+  "description": "Spec 0003 T15 / ADR 0025: cases run against a real model before and after any change to this prompt, in both languages, covering the same scenarios this slice's own acceptance criteria name. Wording differences do not fail a case; a wrong amount, merchant, category or payment account does.",
+  "cases": [
+    {
+      "id": "en-bare-amount",
+      "text": "coffee 350",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 350, "currency": "EUR" }
+    },
+    {
+      "id": "ru-bare-amount",
+      "text": "кофе 350",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 350, "currency": "EUR" }
+    },
+    {
+      "id": "en-decimal-comma",
+      "text": "groceries 24,40 albert heijn",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": { "albert heijn": "Albert Heijn" }, "merchant_default_category": { "Albert Heijn": "groceries" }, "known_categories": ["groceries"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 2440, "merchant": "Albert Heijn", "category_slug": "groceries" }
+    },
+    {
+      "id": "en-payment-method-hint",
+      "text": "dinner 4500 on the credit card",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current", "ICS Credit Card"] },
+      "expect": { "status": "resolved", "amount_minor": 4500, "payment_method_hint": "credit card" }
+    },
+    {
+      "id": "en-yesterday",
+      "text": "coffee 350 yesterday",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 350, "date": "2026-09-12" }
+    },
+    {
+      "id": "ru-note",
+      "text": "кофе 350, подарок Маше",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 350, "note_contains": "Маше" }
+    },
+    {
+      "id": "en-foreign-currency",
+      "text": "45 CHF, charged 42 euros",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": [], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 4200, "original_amount_minor": 4500, "original_currency": "CHF" }
+    },
+    {
+      "id": "en-no-amount",
+      "text": "that was expensive",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": [], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "question" }
+    },
+    {
+      "id": "en-invented-account",
+      "text": "coffee 350 from savings",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": ["dining"], "known_accounts": ["ABN AMRO Current", "ICS Credit Card"] },
+      "expect": { "status": "question" }
+    },
+    {
+      "id": "ru-mixed-language",
+      "text": "coffee 350 в Albert Heijn",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": { "albert heijn": "Albert Heijn" }, "merchant_default_category": { "Albert Heijn": "groceries" }, "known_categories": ["groceries"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 350, "merchant": "Albert Heijn" }
+    },
+    {
+      "id": "en-two-amounts",
+      "text": "spent 20 or maybe 25 at the shop",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": {}, "merchant_default_category": {}, "known_categories": [], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "question" }
+    },
+    {
+      "id": "en-known-merchant-default-category",
+      "text": "ns 1250",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": { "ns": "NS" }, "merchant_default_category": { "NS": "transport" }, "known_categories": ["transport"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 1250, "merchant": "NS", "category_slug": "transport" }
+    },
+    {
+      "id": "en-unseen-merchant",
+      "text": "lunch 800 at Green Leaf Diner",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": { "ah": "Albert Heijn", "albert heijn": "Albert Heijn" }, "merchant_default_category": { "Albert Heijn": "groceries" }, "known_categories": ["groceries", "dining"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 800, "merchant": "Green Leaf Diner" }
+    },
+    {
+      "id": "en-alias-spelling-variant",
+      "text": "quick shop 1200 AH",
+      "context": { "currency": "EUR", "today": "2026-09-13", "known_merchant_aliases": { "ah": "Albert Heijn", "albert heijn": "Albert Heijn" }, "merchant_default_category": { "Albert Heijn": "groceries" }, "known_categories": ["groceries"], "known_accounts": ["ABN AMRO Current"] },
+      "expect": { "status": "resolved", "amount_minor": 1200, "merchant": "Albert Heijn", "category_slug": "groceries" }
+    }
+  ]
+}

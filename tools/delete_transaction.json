@@ -1,0 +1,16 @@
+{
+  "name": "delete_transaction",
+  "version": 1,
+  "purpose": "Delete a recorded transaction. Admin-only (R10) — a non-admin's call fails at the database, not in this declaration.",
+  "shape": "acts_as",
+  "permission": "hh_admin",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" }
+    }
+  }
+}

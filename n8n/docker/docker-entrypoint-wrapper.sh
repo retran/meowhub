@@ -1,13 +1,22 @@
 #!/bin/sh
-# Fails loudly at startup if the prompt or tool directories are not mounted
-# or are empty (ADR 0025, ADR 0039, spec 0001 T9/R17a). A silently missing
-# mount would otherwise mean every capture fails at the first real request
-# instead of at deploy time, when it is cheap to notice.
+# Fails loudly at startup if a required prompt or tool file is missing
+# (ADR 0025, ADR 0039, spec 0001 T9/R17a, spec 0003 A29). Checking that
+# /prompts and /tools are merely non-empty was not enough — each holds a
+# README.md that keeps the directory non-empty forever, so a workflow's
+# own prompt file could vanish and the check would still pass. This
+# checks the specific files a capture actually needs.
 set -e
 
-for d in /prompts /tools; do
-  if [ ! -d "$d" ] || [ -z "$(ls -A "$d" 2>/dev/null)" ]; then
-    echo "FATAL: ${d} is missing or empty — mount it before starting n8n (ADR 0025/0039)" >&2
+REQUIRED_FILES="
+/prompts/capture-text/v1/system.md
+/prompts/capture-text/v1/schema.json
+/prompts/capture-text/v1/examples.json
+/tools/record_transaction.json
+"
+
+for f in $REQUIRED_FILES; do
+  if [ ! -s "$f" ]; then
+    echo "FATAL: ${f} is missing or empty — mount it before starting n8n (ADR 0025/0039)" >&2
     exit 1
   fi
 done

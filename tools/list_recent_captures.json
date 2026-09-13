@@ -1,0 +1,15 @@
+{
+  "name": "list_recent_captures",
+  "version": 1,
+  "purpose": "List the acting member's recent captures, from v_transaction_detail only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 }
+    }
+  }
+}

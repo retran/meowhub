@@ -1,0 +1,15 @@
+{
+  "name": "list_unconfirmed",
+  "version": 1,
+  "purpose": "List unconfirmed transactions for review. Read-only, from v_unconfirmed only (ADR 0039's read tools return aggregates or view rows, never raw ledger tables).",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "limit": { "type": "integer", "minimum": 1, "maximum": 50, "default": 20 }
+    }
+  }
+}

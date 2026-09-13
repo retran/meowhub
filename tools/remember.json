@@ -1,0 +1,17 @@
+{
+  "name": "remember",
+  "version": 1,
+  "purpose": "Keep a standing fact worth carrying into a later, unrelated conversation. Never a financial fact — informs a future question or default, never a transaction's own state (ADR 0044).",
+  "shape": "composes",
+  "permission": "hh_agent",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["content"],
+    "properties": {
+      "member_id": { "type": ["integer", "null"], "description": "null means household-wide." },
+      "content": { "type": "string", "minLength": 1 }
+    }
+  }
+}

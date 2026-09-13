@@ -1,9 +1,9 @@
 ---
 id: 0008
 title: Borrowing — card settlement, overdraft interest, fees and loans
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---

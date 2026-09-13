@@ -1,9 +1,9 @@
 ---
 id: 0005
 title: Multimodal capture — receipt photos and voice notes
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---
@@ -67,7 +67,9 @@ extraction is right often enough that correcting them is rare rather than routin
 - **R10.** The confirmation reply must state what was read from the image or audio,
   so a misreading is caught at once.
 - **R11.** A file that cannot be interpreted must become an unparsed capture with
-  the file retained and one question asked (spec 0003, R17).
+  the file retained and a question asked, following the same rule spec 0003's
+  R17 sets for text: a further question if an answer still leaves a gap, never
+  the same one twice.
 - **R12.** Several photos sent together must each be treated as a separate
   capture, or, if they are pages of one receipt, as one — and the system must ask
   rather than assume.

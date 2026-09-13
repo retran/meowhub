@@ -1,0 +1,18 @@
+{
+  "name": "classify_transaction",
+  "version": 1,
+  "purpose": "Change the category or project attribution of any transaction — never a financial fact, so any member may use this, on any transaction, at any confirmation state (R15a).",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" },
+      "category_account_id": { "type": ["integer", "null"] },
+      "project_id": { "type": ["integer", "null"] }
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "request_correction",
+  "version": 1,
+  "purpose": "A non-admin asks for a financial-fact change they may not make themselves; creates a correction_request and notifies the admins.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id", "requested_change"],
+    "properties": {
+      "transaction_id": { "type": "integer" },
+      "requested_change": { "type": "object" }
+    }
+  }
+}

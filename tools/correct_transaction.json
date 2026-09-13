@@ -1,0 +1,20 @@
+{
+  "name": "correct_transaction",
+  "version": 1,
+  "purpose": "Correct the amount, date, merchant or account of a transaction the acting member submitted, while it is still unconfirmed; an admin may correct any transaction at any time.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" },
+      "amount_minor": { "type": ["integer", "null"] },
+      "date": { "type": ["string", "null"], "format": "date" },
+      "merchant_id": { "type": ["integer", "null"] },
+      "account_id": { "type": ["integer", "null"] }
+    }
+  }
+}

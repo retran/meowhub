@@ -4,9 +4,8 @@
 # A18 — an unlinked Telegram id messages the bot: nothing is written to
 #   member_channel, the attempt is logged, the reply reveals nothing.
 # A19 — an admin links a Telegram id; a capture attributes to that member,
-#   and survives a re-link to a different account unchanged. No real
-#   capture mechanism exists yet (spec 0003), so ledger_probe stands in,
-#   the same scaffold spec 0002 T4's own tests already use for this.
+#   and survives a re-link to a different account unchanged. Uses the
+#   real ledger (spec 0003 T1) directly, now that it exists.
 # A20 — a member with no channel linked still reaches the app path. This
 #   is already proven by scripts/test-proxy-path.sh, whose fixture member
 #   never gets a member_channel row at all; not repeated here.
@@ -109,7 +108,9 @@ TELEGRAM_ID=$(( RANDOM + 600000000 ))
 cleanup() {
   psql_meowhub -c "
     select set_config('meowhub.actor', 'test-suite', true);
-    delete from ledger_probe where captured_by in (${MEMBER_A}, ${MEMBER_B});
+    delete from posting where transaction_id = ${CAPTURE_ID:-0};
+    delete from transaction where id = ${CAPTURE_ID:-0};
+    delete from account where id in (${ASSET_ID:-0}, ${EXPENSE_ID:-0});
     delete from member_channel where external_id = '${TELEGRAM_ID}';
     delete from member_channel where external_id = '${UNLINKED_ID}';
     delete from member where id in (${ADMIN_ID}, ${MEMBER_A}, ${MEMBER_B});
@@ -119,10 +120,27 @@ trap cleanup EXIT
 
 bash scripts/link-telegram-channel.sh "$ADMIN_ID" "$MEMBER_A" "$TELEGRAM_ID" >/dev/null
 
+ASSET_ID="$(psql_meowhub -t -A -c "
+select set_config('meowhub.actor', 'test-suite', true);
+insert into account (type, name) values ('asset', 'Assets:LinkingTestBank') returning id;
+" | grep -E '^[0-9]+$' | tail -1)"
+EXPENSE_ID="$(psql_meowhub -t -A -c "
+select set_config('meowhub.actor', 'test-suite', true);
+insert into account (type, name) values ('expense', 'groceries') returning id;
+" | grep -E '^[0-9]+$' | tail -1)"
+if [ -z "$EXPENSE_ID" ]; then
+  EXPENSE_ID="$(psql_meowhub -t -A -c "select id from account where name = 'groceries' and type = 'expense' limit 1;")"
+fi
+
 CAPTURE_ID="$(psql_meowhub -t -A -c "
 select set_config('meowhub.actor', '${MEMBER_A}', true);
-insert into ledger_probe (captured_by, category) values (${MEMBER_A}, 'groceries') returning id;
+insert into transaction (date, submitter, source) values (current_date, ${MEMBER_A}, 'text') returning id;
 " | grep -E '^[0-9]+$' | tail -1)"
+psql_meowhub -c "
+  select set_config('meowhub.actor', '${MEMBER_A}', true);
+  insert into posting (transaction_id, account_id, amount, currency) values (${CAPTURE_ID}, ${ASSET_ID}, -1000, 'EUR');
+  insert into posting (transaction_id, account_id, amount, currency) values (${CAPTURE_ID}, ${EXPENSE_ID}, 1000, 'EUR');
+" >/dev/null
 
 # re-link the same Telegram id to a different member
 psql_meowhub -c "
@@ -131,7 +149,7 @@ psql_meowhub -c "
 " >/dev/null
 bash scripts/link-telegram-channel.sh "$ADMIN_ID" "$MEMBER_B" "$TELEGRAM_ID" >/dev/null
 
-original_submitter="$(psql_meowhub -t -A -c "select captured_by from ledger_probe where id = ${CAPTURE_ID};")"
+original_submitter="$(psql_meowhub -t -A -c "select submitter from transaction where id = ${CAPTURE_ID};")"
 current_link="$(psql_meowhub -t -A -c "select member_id from member_channel where external_id = '${TELEGRAM_ID}';")"
 
 if [ "$original_submitter" = "$MEMBER_A" ] && [ "$current_link" = "$MEMBER_B" ]; then

@@ -1,0 +1,30 @@
+{
+  "name": "record_transaction",
+  "version": 1,
+  "purpose": "Record a balanced transaction from a resolved capture.",
+  "shape": "composes",
+  "permission": "hh_agent",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["member_id", "date", "amount_minor", "currency", "account_id", "category_account_id", "source"],
+    "properties": {
+      "member_id": { "type": "integer" },
+      "date": { "type": "string", "format": "date" },
+      "amount_minor": { "type": "integer", "minimum": 1 },
+      "currency": { "type": "string" },
+      "original_amount_minor": { "type": ["integer", "null"] },
+      "original_currency": { "type": ["string", "null"] },
+      "account_id": { "type": "integer", "description": "The payment account, debited (or credited, for a liability)." },
+      "category_account_id": { "type": "integer", "description": "The expense-type account this posts against." },
+      "merchant_id": { "type": ["integer", "null"] },
+      "category_source": { "type": "string", "enum": ["merchant_default", "model", "manual"] },
+      "note": { "type": ["string", "null"] },
+      "source": { "type": "string", "enum": ["text", "photo", "voice", "manual"] },
+      "model": { "type": ["string", "null"] },
+      "prompt_version": { "type": ["string", "null"] },
+      "inferred_fields": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "confirm_transaction",
+  "version": 1,
+  "purpose": "Confirm a transaction the acting member submitted, while it is still unconfirmed.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" }
+    }
+  }
+}

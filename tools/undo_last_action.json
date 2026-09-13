@@ -1,0 +1,16 @@
+{
+  "name": "undo_last_action",
+  "version": 1,
+  "purpose": "Reverse the acting member's own most recent action as a compensating change (ADR 0036). Scoped to that member's own last audit_log entry — never another member's.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["member_id"],
+    "properties": {
+      "member_id": { "type": "integer" }
+    }
+  }
+}

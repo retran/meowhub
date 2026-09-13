@@ -1,0 +1,17 @@
+{
+  "name": "merge_category",
+  "version": 1,
+  "purpose": "Merge one category into another: every transaction posted to the merged-away category is repointed, and it is deactivated. Always an admin's own request (ADR 0031).",
+  "shape": "acts_as",
+  "permission": "hh_admin",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["from_account_id", "into_account_id"],
+    "properties": {
+      "from_account_id": { "type": "integer" },
+      "into_account_id": { "type": "integer" }
+    }
+  }
+}

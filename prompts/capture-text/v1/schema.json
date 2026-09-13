@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "capture-text output",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["status", "inferred_fields"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["resolved", "question"]
+    },
+    "amount_minor": {
+      "type": ["integer", "null"],
+      "description": "The amount charged, in minor units, in the household's default currency."
+    },
+    "currency": {
+      "type": ["string", "null"],
+      "description": "ISO 4217, always the household default when amount_minor is set."
+    },
+    "original_amount_minor": {
+      "type": ["integer", "null"],
+      "description": "Set only when the message states a foreign-currency amount actually charged."
+    },
+    "original_currency": {
+      "type": ["string", "null"]
+    },
+    "date": {
+      "type": ["string", "null"],
+      "format": "date",
+      "description": "Resolved ISO date, or null to let the system default to today."
+    },
+    "merchant": {
+      "type": ["string", "null"],
+      "description": "A known merchant's canonical name, or the raw text as typed if unrecognised."
+    },
+    "category_slug": {
+      "type": ["string", "null"],
+      "description": "A known category slug, or a new proposed slug (lowercase, hyphenated)."
+    },
+    "payment_method_hint": {
+      "type": ["string", "null"]
+    },
+    "note": {
+      "type": ["string", "null"]
+    },
+    "question": {
+      "type": ["string", "null"],
+      "description": "Required when status is \"question\": exactly one question, in the member's own language."
+    },
+    "inferred_fields": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["amount", "merchant", "category", "date", "account"]
+      }
+    }
+  }
+}

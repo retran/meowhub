@@ -2,3 +2,8 @@
 # the repository bind-mounted read-only, using the same scripts and
 # Taskfile verbs a developer would from the host.
 0 3 * * * cd /workspace && bash scripts/detect-drift.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
+
+# Auto-confirm-quiet (spec 0003 T12, R7c), every 15 minutes — cheap
+# enough that the quiet period is what actually paces it, not the cron
+# schedule.
+*/15 * * * * cd /workspace && bash scripts/auto-confirm-quiet.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

@@ -1,0 +1,281 @@
+{
+  "prompt": "capture-text",
+  "version": "capture-text@1",
+  "model": "openai/gpt-4o-mini",
+  "total": 14,
+  "passed": 14,
+  "results": [
+    {
+      "id": "en-bare-amount",
+      "text": "coffee 350",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 350,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": "dining",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "ru-bare-amount",
+      "text": "\u043a\u043e\u0444\u0435 350",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 350,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": "dining",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-decimal-comma",
+      "text": "groceries 24,40 albert heijn",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 2440,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": "Albert Heijn",
+        "category_slug": "groceries",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-payment-method-hint",
+      "text": "dinner 4500 on the credit card",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 4500,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": "dining",
+        "payment_method_hint": "credit card",
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-yesterday",
+      "text": "coffee 350 yesterday",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 350,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": "2026-09-12",
+        "merchant": null,
+        "category_slug": "dining",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "ru-note",
+      "text": "\u043a\u043e\u0444\u0435 350, \u043f\u043e\u0434\u0430\u0440\u043e\u043a \u041c\u0430\u0448\u0435",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 350,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": "dining",
+        "payment_method_hint": null,
+        "note": "\u043f\u043e\u0434\u0430\u0440\u043e\u043a \u041c\u0430\u0448\u0435",
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-foreign-currency",
+      "text": "45 CHF, charged 42 euros",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 4200,
+        "currency": "EUR",
+        "original_amount_minor": 4500,
+        "original_currency": "CHF",
+        "date": null,
+        "merchant": null,
+        "category_slug": null,
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": [
+          "merchant",
+          "category"
+        ]
+      },
+      "problems": []
+    },
+    {
+      "id": "en-no-amount",
+      "text": "that was expensive",
+      "ok": true,
+      "actual": {
+        "status": "question",
+        "amount_minor": null,
+        "currency": null,
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": null,
+        "payment_method_hint": null,
+        "note": null,
+        "question": "How much was it?",
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-invented-account",
+      "text": "coffee 350 from savings",
+      "ok": true,
+      "actual": {
+        "status": "question",
+        "amount_minor": null,
+        "currency": null,
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": null,
+        "payment_method_hint": "savings",
+        "note": null,
+        "question": "I don't have a \"savings\" account on file \u2014 which of your accounts was this?",
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "ru-mixed-language",
+      "text": "coffee 350 \u0432 Albert Heijn",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 350,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": "Albert Heijn",
+        "category_slug": "groceries",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-two-amounts",
+      "text": "spent 20 or maybe 25 at the shop",
+      "ok": true,
+      "actual": {
+        "status": "question",
+        "amount_minor": null,
+        "currency": null,
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": null,
+        "category_slug": null,
+        "payment_method_hint": null,
+        "note": null,
+        "question": "What was the exact amount spent?",
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-known-merchant-default-category",
+      "text": "ns 1250",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 1250,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": "NS",
+        "category_slug": "transport",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-unseen-merchant",
+      "text": "lunch 800 at Green Leaf Diner",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 800,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": null,
+        "merchant": "Green Leaf Diner",
+        "category_slug": "dining",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    },
+    {
+      "id": "en-alias-spelling-variant",
+      "text": "quick shop 1200 AH",
+      "ok": true,
+      "actual": {
+        "status": "resolved",
+        "amount_minor": 1200,
+        "currency": "EUR",
+        "original_amount_minor": null,
+        "original_currency": null,
+        "date": "2026-09-13",
+        "merchant": "Albert Heijn",
+        "category_slug": "groceries",
+        "payment_method_hint": null,
+        "note": null,
+        "inferred_fields": []
+      },
+      "problems": []
+    }
+  ]
+}

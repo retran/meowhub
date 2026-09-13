@@ -6,7 +6,7 @@ date: 2026-09-12
 deciders: owner
 supersedes: []
 superseded-by: []
-amended-by: [0030, 0033]
+amended-by: [0030, 0033, 0043]
 ---
 
 # ADR 0027 — Telegram is the conversational platform, and the source of member identity

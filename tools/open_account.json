@@ -1,0 +1,19 @@
+{
+  "name": "open_account",
+  "version": 1,
+  "purpose": "Open a new account or category. Always an admin's own request (ADR 0031) — the agent never creates an account unasked; the one unprompted exception (a category met while capturing) uses record_transaction's own category creation path, not this tool.",
+  "shape": "acts_as",
+  "permission": "hh_admin",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["type", "name"],
+    "properties": {
+      "type": { "type": "string", "enum": ["asset", "liability", "income", "expense", "equity"] },
+      "name": { "type": "string" },
+      "currency": { "type": "string" },
+      "parent_id": { "type": ["integer", "null"] }
+    }
+  }
+}

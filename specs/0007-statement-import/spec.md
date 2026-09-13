@@ -1,9 +1,9 @@
 ---
 id: 0007
 title: Statement import and reconciliation
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---

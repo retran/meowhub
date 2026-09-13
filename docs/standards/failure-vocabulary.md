@@ -20,7 +20,7 @@ is his, never theirs.
 
 | Name | When | What the member gets | Where it lives |
 |---|---|---|---|
-| **Unparsed capture** | No balanced transaction could be produced | The message is kept, and **one** question that would resolve it | `capture`, state unparsed |
+| **Unparsed capture** | No balanced transaction could be produced | The whole exchange is kept, and a question that would resolve it — a further one if an answer still leaves a gap, never the same question twice | `capture`, state unparsed |
 | **Model unavailable** | The gateway failed after one retry | The capture is kept; told it will be handled. Never an error code | `capture`, unparsed |
 | **Schema violation** | The model answered outside its declared schema | Indistinguishable from unparsed, deliberately | `capture` + the response in the audit log |
 | **Cost ceiling reached** | The task's configured spend cap would be exceeded | Asked to type the amount instead | Recorded on the capture |

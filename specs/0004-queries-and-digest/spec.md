@@ -1,9 +1,9 @@
 ---
 id: 0004
 title: Chat queries and the scheduled digest
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---
@@ -50,7 +50,8 @@ weekly digest is read rather than muted.
 - **R2.** The system must answer at least these, in free text:
 
   **Spending** — the total for a period; by category; at a merchant; by a member;
-  and any of those compared with the previous period.
+  **which categories took the most in a period, ranked**; and any of those
+  compared with the previous period.
 
   **The state of the accounts** — what a named account holds; what the household
   holds in total; **what it owes** in total and per liability; its net position;
@@ -134,6 +135,11 @@ schedules and heartbeats, and per-member digest preferences.
 - [ ] **A1.** Given a month of captured expenses, when a member asks "how much on
       groceries in October", then the reply states the figure, the period, and the
       unconfirmed share.
+- [ ] **A1a.** Given a month of captured expenses across several categories, when
+      a member asks "what did we spend the most on last month" (or the Russian
+      equivalent, «на что мы тратили больше всего в том месяце»), then the reply
+      names the ranked categories with each one's total for that period, from the
+      same view a "by category" question would use.
 - [ ] **A2.** Given the same data, when the equivalent question is asked in
       Russian, then the figure is identical and the reply is in Russian.
 - [ ] **A3.** Given a question the system cannot map, when it is asked, then no

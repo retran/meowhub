@@ -1,9 +1,9 @@
 ---
 id: 0003
 title: Chart of accounts, opening balances and text expense capture
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: owner
 supersedes: []
 ---
@@ -87,6 +87,14 @@ and the resulting account balances move in step with reality.
   stored as a maintained figure.
 - **R6.** Every transaction must record who submitted it, in what form, when, and
   which model interpreted it, if any.
+- **R6a.** The **exact text** of the message that produced a transaction must be
+  stored and linked to it, retrievable later exactly as sent — not only inferred
+  from the confirmation reply. Where reaching a balanced transaction took more
+  than one message (R17's follow-up questions), **every** message in that
+  exchange is stored and linked to it, in order — not only the first one. This
+  is the same guarantee spec 0005 already gives a photo or voice note (its R7):
+  whatever caused a record to exist is itself kept, whichever form it arrived
+  in and however many messages it took.
 - **R7.** Every change to a transaction must be recorded with its before and
   after state and its actor.
 
@@ -142,8 +150,13 @@ and the resulting account balances move in step with reality.
   able to ask for it in one message; the request is recorded against the
   transaction and the admins are notified.
 - **R17.** When the system cannot produce a balanced transaction it trusts, it
-  must store what it received, ask the member the one question that would resolve
-  it, and record nothing until answered.
+  must store what it received and ask the member a question that would resolve
+  it, recording nothing until answered. If the answer still leaves it unable to
+  produce a transaction it trusts, it must ask a further question rather than
+  guess — a real back-and-forth, never capped at exactly one exchange — but it
+  never repeats a question already asked and answered, and it never asks two
+  things in one message. It stops asking once it has enough, or names what it
+  is still missing if the member stops answering.
 - **R18.** A message from a Telegram account that is not a household member must
   be refused without disclosing anything about the system.
 - **R19.** The same Telegram message delivered more than once must not produce
@@ -256,10 +269,15 @@ and the resulting account balances move in step with reality.
       impersonation, not only through the bot.
 - [ ] **A18.** Given a message with no recoverable amount — "that was expensive" —
       when it is captured, then no transaction exists, the message is stored, and
-      the member is asked exactly one question.
+      the member is asked one question.
+- [ ] **A18a.** Given an unparsed capture whose answer still leaves the amount or
+      the merchant unresolvable, when that answer is processed, then a further,
+      different question is asked rather than a guess — never the question just
+      answered — and the capture stays unparsed, storing every message so far.
 - [ ] **A19.** Given an unanswered unparsed capture, when the member replies with
       the missing piece, then the transaction is recorded and the capture is
-      closed.
+      closed — whether that reply was the first answer or a later one in the
+      same exchange.
 - [ ] **A20.** Given the model gateway is unavailable, when a capture arrives,
       then the message is stored as unparsed, the member is told it will be
       handled, and nothing is recorded or lost.
@@ -270,6 +288,11 @@ and the resulting account balances move in step with reality.
       processed, then exactly one transaction exists.
 - [ ] **A23.** Given expenses captured by two different members, when the ledger is
       inspected, then each transaction carries the correct submitter.
+- [ ] **A23a.** Given a transaction captured from a text message, when its
+      original message is requested, then the exact text sent is returned —
+      unmodified by extraction, correction or anything said about it since; and
+      given a capture that took a question and an answer to resolve, then both
+      messages are returned in order, not only the first.
 - [ ] **A24.** Given a stated date in the past — "coffee 350 yesterday" — when it is
       captured, then the transaction is dated correctly in the household's
       timezone.
@@ -315,9 +338,11 @@ and the resulting account balances move in step with reality.
       restarted, then it resumes from the same step — proving the state is in the
       database and not in an execution context.
 - [ ] **A40.** Given a scripted multi-turn exchange — a capture that cannot be
-      parsed, the question, and the member's answer — when it is replayed as a
-      test, then the transaction is recorded and the capture is closed. Every
-      conversational flow has such a test.
+      parsed, a question, an answer that still leaves a gap, a further
+      question, and a final answer that resolves it — when it is replayed as a
+      test, then the transaction is recorded and the capture is closed, with
+      every message in the exchange stored. Every conversational flow has such
+      a test.
 - [ ] **A41.** Given the same pending question, when the workflow runs again
       without new information, then the question is not repeated.
 - [ ] **A42.** Given each declared tool, when it is called with deliberately
@@ -355,8 +380,9 @@ and the resulting account balances move in step with reality.
   reconciliation.
 - **What queue or obligation it creates:** two, both bounded. Unconfirmed records
   (ADR 0023) drain by review, by matching, or by the quiet-period rule.
-  Unparsed captures drain by the member answering one question, and are visible
-  rather than silently accumulating.
+  Unparsed captures drain by the member answering the question asked — and a
+  further one where a single answer was not enough — and are visible rather
+  than silently accumulating.
 - **What it interrupts, and how often:** one confirmation per capture, to the
   person who captured. Nothing else. No alerts, no nudges, no daily summary.
 - **If nobody touches it for a month:** nothing breaks and nothing is lost.

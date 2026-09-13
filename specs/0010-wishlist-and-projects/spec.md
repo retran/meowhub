@@ -1,9 +1,9 @@
 ---
 id: 0010
 title: The wishlist and projects
-status: review
+status: approved
 created: 2026-09-12
-updated: 2026-09-12
+updated: 2026-09-13
 owner: admins
 supersedes: []
 ---

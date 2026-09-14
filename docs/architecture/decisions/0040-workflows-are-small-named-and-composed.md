@@ -6,6 +6,7 @@ date: 2026-09-12
 deciders: owner
 supersedes: []
 superseded-by: []
+amended-by: [0046]
 ---
 
 # ADR 0040 — Workflows are small, named by what they do, and composed rather than branched

@@ -135,11 +135,7 @@ docker compose cp "$TMP" n8n:/tmp/correction-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/correction-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=corrtestentry001 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 rm -f "$TMP"
 
 # A13: an admin corrects a just-recorded transaction's amount in one message.

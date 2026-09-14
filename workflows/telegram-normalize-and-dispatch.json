@@ -36,7 +36,7 @@
         ]
       ]
     },
-    "Dispatch Capture": {
+    "Dispatch Agent": {
       "main": [
         [
           {
@@ -47,34 +47,19 @@
         ]
       ]
     },
-    "Dispatch Correction": {
+    "Has Text?": {
       "main": [
         [
           {
             "index": 0,
-            "node": "Should Reply?",
+            "node": "Dispatch Agent",
             "type": "main"
           }
-        ]
-      ]
-    },
-    "Dispatch Setup": {
-      "main": [
+        ],
         [
           {
             "index": 0,
-            "node": "Should Reply?",
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Dispatch Structural": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Should Reply?",
+            "node": "Set Placeholder Reply",
             "type": "main"
           }
         ]
@@ -147,79 +132,7 @@
         [
           {
             "index": 0,
-            "node": "Route: Setup?",
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Route: Capture?": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Dispatch Capture",
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "index": 0,
-            "node": "Set Placeholder Reply",
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Route: Correction?": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Dispatch Correction",
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "index": 0,
-            "node": "Route: Capture?",
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Route: Setup?": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Dispatch Setup",
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "index": 0,
-            "node": "Route: Structural?",
-            "type": "main"
-          }
-        ]
-      ]
-    },
-    "Route: Structural?": {
-      "main": [
-        [
-          {
-            "index": 0,
-            "node": "Dispatch Structural",
-            "type": "main"
-          }
-        ],
-        [
-          {
-            "index": 0,
-            "node": "Route: Correction?",
+            "node": "Has Text?",
             "type": "main"
           }
         ]
@@ -553,7 +466,7 @@
       "id": "d0000000-0000-4000-8000-00000000000c",
       "name": "Route Message",
       "parameters": {
-        "jsCode": "// Decide which sub-workflow a linked sender's message goes\n// to (spec 0003 T10/T11): an already-open setup or structural-change\n// conversation always continues there; otherwise a trigger phrase\n// (any member -- an admin-only structural write still fails at the\n// database if a non-admin somehow gets this far, ADR 0042) starts\n// one; a correction phrase (\"it was X not Y\", \"delete it\", \"put it\n// under Y\") is a one-shot correction against the relevant recent\n// transaction, not a multi-turn conversation; a photo or voice note\n// is out of this slice's scope (spec 0005); anything else is a text\n// capture.\nconst http = require('http');\nconst { URL } = require('url');\n\nfunction httpJson(method, url, headers) {\n  return new Promise((resolve, reject) => {\n    const u = new URL(url);\n    const options = { hostname: u.hostname, port: u.port, path: u.pathname + u.search, method, headers: headers || {} };\n    const req = http.request(options, (res) => {\n      let data = '';\n      res.on('data', (c) => (data += c));\n      res.on('end', () => {\n        let parsed = null;\n        try { parsed = data ? JSON.parse(data) : null; } catch (e) { parsed = null; }\n        resolve({ status: res.statusCode, body: parsed });\n      });\n    });\n    req.on('error', reject);\n    req.end();\n  });\n}\n\nconst CORRECTION_TRIGGER = /\\bit was\\b|\\b(?:delete|remove) (?:it|that|this)\\b|\\bput (?:it|that) under\\b|\\bcategory (?:is|should be)\\b|\\bthat'?s actually\\b|^confirm:\\d+$|^fixcat:\\d+$|^\\s*(?:confirm|approve)\\b|^\\s*undo\\b|^(?:remember|\u0437\u0430\u043f\u043e\u043c\u043d\u0438)[:\\s]|\u043a\u0430\u043a \u043e\u0431\u044b\u0447\u043d\u043e|same again|\\bas usual\\b|\\brecent (?:captures|expenses)\\b|\\blast few\\b|\\bmy (?:recent|last) expenses\\b|\\bunconfirmed\\b|\\bqueue\\b|\u043d\u0435\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434|^\\s*confirm all\\b/i;\n\nasync function main() {\n  const m = $('Mint Agent Token').item.json;\n  const memberId = $json.body[0].member_id;\n  const base = { member_id: memberId, chat_id: m.chat_id, message_thread_id: m.message_thread_id, text: m.text, language_hint: m.language_hint, channel_message_id: m.message_id, update_id: m.update_id, callback_query_id: m.callback_query_id || null };\n\n  if (m.has_photo || m.has_voice || !m.text) {\n    return [{ json: { ...base, route: 'placeholder' } }];\n  }\n\n  const auth = { Authorization: `Bearer ${m.agent_token}` };\n  const convRes = await httpJson('GET', `http://postgrest:3000/conversation?member_id=eq.${memberId}&kind=eq.setup&closed_at=is.null`, auth);\n  const hasOpenSetup = (convRes.body || []).length > 0;\n\n  const structRes = await httpJson('GET', `http://postgrest:3000/conversation?member_id=eq.${memberId}&kind=eq.structural_change&closed_at=is.null`, auth);\n  const hasOpenStructural = (structRes.body || []).length > 0;\n\n  const setupTrigger = /\\b(setup|set up|settings|\u043d\u0430\u0441\u0442\u0440\u043e\u0439|\u043d\u0430\u0441\u0442\u0440\u043e\u0439\u043a)/i.test(m.text);\n  const structuralTrigger = /\\bopen (?:a |an |new )?.*\\baccount\\b|\\bmerge\\b.*\\bcategor/i.test(m.text);\n\n  let route = 'capture';\n  if (hasOpenSetup || setupTrigger) {\n    route = 'setup';\n  } else if (hasOpenStructural || structuralTrigger) {\n    route = 'structural';\n  } else if (CORRECTION_TRIGGER.test(m.text)) {\n    route = 'correction';\n  }\n\n  return [{ json: { ...base, route } }];\n}\n\nreturn main();\n"
+        "jsCode": "// Normalise a linked sender's message into what the agent needs\n// (ADR 0046). There is no routing left to do: one conversational\n// entry point, one agent, and the agent decides what the message is.\n// A photo or voice note is still out of this slice's scope (spec 0005).\nconst m = $('Mint Agent Token').item.json;\nconst memberId = $json.body[0].member_id;\nconst base = {\n  member_id: memberId,\n  chat_id: m.chat_id,\n  message_thread_id: m.message_thread_id,\n  text: m.text,\n  language_hint: m.language_hint,\n  channel_message_id: m.message_id,\n  update_id: m.update_id,\n  callback_query_id: m.callback_query_id || null,\n};\n\nif (m.has_photo || m.has_voice || !m.text) {\n  return [{ json: { ...base, route: 'placeholder' } }];\n}\nreturn [{ json: { ...base, route: 'agent' } }];"
       },
       "position": [
         1600,
@@ -564,14 +477,14 @@
     },
     {
       "id": "d0000000-0000-4000-8000-00000000000e",
-      "name": "Dispatch Capture",
+      "name": "Dispatch Agent",
       "parameters": {
         "options": {},
         "source": "database",
         "workflowId": {
           "__rl": true,
           "mode": "id",
-          "value": "capturetext0001"
+          "value": "agentloop00001"
         }
       },
       "position": [
@@ -627,187 +540,6 @@
       "typeVersion": 2.2
     },
     {
-      "id": "d0000000-0000-4000-8000-000000000011",
-      "name": "Route: Setup?",
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $json.route }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "setup"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          }
-        },
-        "options": {}
-      },
-      "position": [
-        1620,
-        -40
-      ],
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000012",
-      "name": "Route: Capture?",
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $json.route }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "capture"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          }
-        },
-        "options": {}
-      },
-      "position": [
-        1620,
-        120
-      ],
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000013",
-      "name": "Dispatch Setup",
-      "parameters": {
-        "options": {},
-        "source": "database",
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "setupconv00001"
-        }
-      },
-      "position": [
-        1800,
-        -80
-      ],
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000014",
-      "name": "Route: Structural?",
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $json.route }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "structural"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          }
-        },
-        "options": {}
-      },
-      "position": [
-        1620,
-        40
-      ],
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000015",
-      "name": "Dispatch Structural",
-      "parameters": {
-        "options": {},
-        "source": "database",
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "structchg0001"
-        }
-      },
-      "position": [
-        1800,
-        40
-      ],
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000016",
-      "name": "Route: Correction?",
-      "parameters": {
-        "conditions": {
-          "combinator": "and",
-          "conditions": [
-            {
-              "leftValue": "={{ $json.route }}",
-              "operator": {
-                "operation": "equals",
-                "type": "string"
-              },
-              "rightValue": "correction"
-            }
-          ],
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose"
-          }
-        },
-        "options": {}
-      },
-      "position": [
-        1620,
-        80
-      ],
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2
-    },
-    {
-      "id": "d0000000-0000-4000-8000-000000000017",
-      "name": "Dispatch Correction",
-      "parameters": {
-        "options": {},
-        "source": "database",
-        "workflowId": {
-          "__rl": true,
-          "mode": "id",
-          "value": "correction0001"
-        }
-      },
-      "position": [
-        1800,
-        80
-      ],
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.3
-    },
-    {
       "id": "d0000000-0000-4000-8000-000000000018",
       "name": "Answer Callback?",
       "parameters": {
@@ -856,6 +588,37 @@
       ],
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-00000000001a",
+      "name": "Has Text?",
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.route }}",
+              "operator": {
+                "operation": "equals",
+                "type": "string"
+              },
+              "rightValue": "agent"
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          }
+        },
+        "options": {}
+      },
+      "position": [
+        1620,
+        0
+      ],
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2
     }
   ],
   "pinData": null,

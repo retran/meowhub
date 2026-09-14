@@ -1,0 +1,16 @@
+{
+  "name": "search_transactions",
+  "version": 1,
+  "purpose": "Free-text search over notes, merchants and the raw captures that produced a transaction (R19). From v_transaction_search only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["query"],
+    "properties": {
+      "query": { "type": "string", "minLength": 1 }
+    }
+  }
+}

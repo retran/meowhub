@@ -1,0 +1,22 @@
+{
+  "name": "export_period",
+  "version": 1,
+  "purpose": "Export a period as CSV -- every posting with its account, amount, merchant and confirmation state (R21). The books belong to the household and must be removable from it at any time. Readable by any member, because every member can already read the whole ledger (ADR 0016, R8): an export is a bulk read, so gating it would protect nothing it is not already possible to read one question at a time.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "period"
+    ],
+    "properties": {
+      "period": {
+        "type": "string",
+        "pattern": "^(this_month|last_month|this_year|last_year|last_7_days|last_30_days|month_of:[0-9]{4}-(0[1-9]|1[0-2]))$",
+        "description": "One of the fixed period names (ADR 0045): this_month, last_month, this_year, last_year, last_7_days, last_30_days, or month_of:YYYY-MM for a named month. Any other value is refused: do not invent a date or a range."
+      }
+    }
+  }
+}

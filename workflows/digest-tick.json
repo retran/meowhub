@@ -1,0 +1,81 @@
+{
+  "active": true,
+  "connections": {
+    "Digest Tick": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Digest Tick",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  },
+  "description": null,
+  "id": "digesttick0001",
+  "meta": null,
+  "name": "digest-tick",
+  "nodes": [
+    {
+      "id": "d0000000-0000-4000-8000-000000000001",
+      "name": "Webhook",
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "digest-tick",
+        "responseMode": "responseNode"
+      },
+      "position": [
+        0,
+        0
+      ],
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "webhookId": "digest-tick"
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000002",
+      "name": "Digest Tick",
+      "parameters": {
+        "jsCode": "// The digest tick (spec 0004 T11, R9-R18). Hourly: SQL says who is due\n// and unsent, this renders the template and sends it. Deliberately\n// model-free -- a digest is a broadcast of figures the views already\n// hold, and a generated one could disagree with an answer (R13).\n//\n// Idempotent by construction: the insert into digest_run is the send's\n// gate, so a container that was down at 09:00 sends at 10:00 and one\n// restarted twice in an hour sends once.\nconst crypto = require('crypto');\nconst http = require('http');\nconst https = require('https');\nconst fs = require('fs');\nconst { URL } = require('url');\n\nconst PG = 'http://postgrest:3000';\n\nfunction b64url(buf) {\n  return buf.toString('base64').replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');\n}\n\nfunction mintAgentToken(memberId) {\n  const header = b64url(Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));\n  const payload = b64url(Buffer.from(JSON.stringify({ role: 'hh_agent', member_id: memberId, exp: Math.floor(Date.now() / 1000) + 120 })));\n  const signingInput = `${header}.${payload}`;\n  const signature = b64url(crypto.createHmac('sha256', $env.PGRST_JWT_SECRET).update(signingInput).digest());\n  return `${signingInput}.${signature}`;\n}\n\nfunction httpJson(method, url, headers, body) {\n  return new Promise((resolve, reject) => {\n    const bodyStr = body !== undefined ? JSON.stringify(body) : undefined;\n    const u = new URL(url);\n    const options = {\n      hostname: u.hostname, port: u.port, path: u.pathname + u.search, method,\n      headers: Object.assign({ 'Content-Type': 'application/json' }, headers, bodyStr ? { 'Content-Length': Buffer.byteLength(bodyStr) } : {}),\n    };\n    const req = http.request(options, (res) => {\n      let data = '';\n      res.on('data', (c) => (data += c));\n      res.on('end', () => {\n        let parsed = null;\n        try { parsed = data ? JSON.parse(data) : null; } catch (e) { parsed = data; }\n        resolve({ status: res.statusCode, body: parsed });\n      });\n    });\n    req.on('error', reject);\n    if (bodyStr) req.write(bodyStr);\n    req.end();\n  });\n}\n\nfunction telegramSend(chatId, text) {\n  return new Promise((resolve) => {\n    const token = $env.TELEGRAM_DELIVERY_MODE === 'polling' ? $env.TELEGRAM_LOCAL_BOT_TOKEN : $env.TELEGRAM_BOT_TOKEN;\n    if (!token) return resolve(false);\n    const body = JSON.stringify({ chat_id: chatId, text });\n    const req = https.request({\n      hostname: 'api.telegram.org', path: `/bot${token}/sendMessage`, method: 'POST',\n      headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },\n    }, (res) => { res.on('data', () => {}); res.on('end', () => resolve(res.statusCode < 300)); });\n    req.on('error', () => resolve(false));\n    req.write(body);\n    req.end();\n  });\n}\n\n// ADR 0017: every string the system says without the agent comes out of\n// the catalogue, and a missing key is a visible failure rather than a\n// blank line in somebody's chat.\nconst catalogues = {};\nfunction t(language, key, vars) {\n  const lang = language === 'ru' ? 'ru' : 'en';\n  if (!catalogues[lang]) catalogues[lang] = JSON.parse(fs.readFileSync(`/i18n/${lang}.json`, 'utf8'));\n  let value = catalogues[lang][key];\n  if (value === undefined) throw new Error(`i18n: missing key '${key}' in ${lang}`);\n  for (const [name, val] of Object.entries(vars || {})) {\n    value = value.split(`{{${name}}}`).join(String(val));\n  }\n  return value;\n}\n\nfunction money(minor, currency) {\n  const symbol = { EUR: '\u20ac', USD: '$', RUB: '\u20bd' }[currency || 'EUR'] || (currency || '');\n  return `${(Number(minor || 0) / 100).toFixed(2)} ${symbol}`.trim();\n}\n\nasync function main() {\n  const item = ($input.first() && $input.first().json) || {};\n  // Called through a webhook, so the payload is under `body`; called\n  // directly in a test harness, it is the item itself.\n  const input = item.body || item;\n  // The clock is a parameter so a test can move it (plan.md); nothing\n  // passes it in production, where SQL reads now() itself.\n  const at = input.at ? `?at=${encodeURIComponent(input.at)}` : '';\n\n  const readAuth = { Authorization: `Bearer ${mintAgentToken(null)}` };\n  const [dueRes, settingRes] = await Promise.all([\n    httpJson('GET', `${PG}/rpc/digest_due${at}`, readAuth),\n    httpJson('GET', `${PG}/household_setting?key=eq.default_currency&select=value`, readAuth),\n  ]);\n  // The household's currency is a row, never a constant here (ADR 0034);\n  // the spend views carry minor units and say nothing about currency.\n  const householdCurrency = ((settingRes.body || [])[0] || {}).value || 'EUR';\n  if (dueRes.status < 200 || dueRes.status >= 300) {\n    return [{ json: { error: (dueRes.body && dueRes.body.message) || `could not ask who is due: ${dueRes.status}`, sent: [] } }];\n  }\n\n  const sent = [];\n  for (const due of dueRes.body || []) {\n    const auth = { Authorization: `Bearer ${mintAgentToken(due.member_id)}` };\n\n    // The gate: whoever writes this row owns the send. A duplicate is\n    // not an error here, it is the answer to \"has this gone already?\".\n    const claim = await httpJson('POST', `${PG}/digest_run`, Object.assign({ Prefer: 'return=minimal' }, auth), {\n      member_id: due.member_id, kind: due.kind, period_start: due.period_start,\n    });\n    if (claim.status === 409) continue;\n    if (claim.status < 200 || claim.status >= 300) {\n      sent.push({ member_id: due.member_id, kind: due.kind, error: (claim.body && claim.body.message) || claim.status });\n      continue;\n    }\n\n    const [totalRes, categoryRes, reconRes, channelRes] = await Promise.all([\n      httpJson('GET', `${PG}/v_period_spend?period=eq.${due.period}`, auth),\n      httpJson('GET', `${PG}/v_category_spend?period=eq.${due.period}&amount_minor=gt.0&order=amount_minor.desc&limit=3`, auth),\n      httpJson('GET', `${PG}/v_period_reconciliation?period=eq.${due.period}`, auth),\n      httpJson('GET', `${PG}/member_channel?member_id=eq.${due.member_id}&kind=eq.telegram&select=external_id`, auth),\n    ]);\n\n    const total = (totalRes.body || [])[0] || null;\n    const categories = categoryRes.body || [];\n    const recon = (reconRes.body || [])[0] || null;\n    const currency = householdCurrency;\n\n    // R16: a period with nothing in it is said in one line, never\n    // suppressed -- silence would read as a broken digest.\n    let text;\n    if (!total || !Number(total.amount_minor)) {\n      text = t(due.language, 'digest_empty', {\n        period_start: (total && total.period_start) || due.period_start,\n        period_end: (total && total.period_end) || due.period_start,\n      });\n    } else {\n      text = t(due.language, due.kind === 'weekly' ? 'digest_weekly' : 'digest_monthly', {\n        period_start: total.period_start,\n        period_end: total.period_end,\n        total: money(total.amount_minor, currency),\n        previous: money(total.previous_amount_minor, currency),\n        unconfirmed: money(total.unconfirmed_amount_minor, currency),\n        categories: categories.map((c) => `${c.category_slug} ${money(c.amount_minor, currency)}`).join(', '),\n        // R17: the period's reconciliation status is stated rather\n        // than waited for.\n        reconciliation: recon && recon.reconciled ? '' : t(due.language, 'digest_unreconciled', {}),\n      }).trim();\n    }\n\n    const chat = (channelRes.body || [])[0];\n    const delivered = chat ? await telegramSend(chat.external_id, text) : false;\n    sent.push({ member_id: due.member_id, kind: due.kind, period: due.period, period_start: due.period_start, language: due.language, text, delivered });\n  }\n\n  return [{ json: { sent, count: sent.length } }];\n}\n\nreturn main();\n"
+      },
+      "position": [
+        220,
+        0
+      ],
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2
+    },
+    {
+      "id": "d0000000-0000-4000-8000-000000000003",
+      "name": "Respond",
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ $json }}"
+      },
+      "position": [
+        440,
+        0
+      ],
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1
+    }
+  ],
+  "pinData": null,
+  "settings": {},
+  "sourceWorkflowId": null
+}

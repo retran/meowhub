@@ -1,0 +1,18 @@
+{
+  "name": "create_merchant",
+  "version": 1,
+  "purpose": "Record a merchant the household has not seen before, so the next capture recognises it (spec 0003 R12). The agent composes this from what the member wrote (ADR 0042) -- it is not a structural change and needs no admin. Only call it after find_merchant returned nothing.",
+  "shape": "composes",
+  "permission": "hh_agent",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["name"],
+    "properties": {
+      "name": { "type": "string", "minLength": 1, "description": "The merchant's canonical name, as it is called in the world -- never translated (ADR 0017)." },
+      "alias": { "type": ["string", "null"], "description": "The exact spelling the member used, when it differs from the name, so that spelling is recognised next time. The merchant's own name is always matchable and need not be repeated here." },
+      "default_category_slug": { "type": ["string", "null"], "description": "Set only when the category is genuinely characteristic of this merchant; it is what lets a later capture skip guessing (spec 0003 R13)." }
+    }
+  }
+}

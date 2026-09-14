@@ -55,6 +55,7 @@ try:
         ("drift check (heartbeat)", "HEARTBEAT_DRIFT_CHECK_URL", 86400),
         ("backup (heartbeat)", "HEARTBEAT_BACKUP_URL", 129600),  # 36h: nightly, generous
         ("restore verification (heartbeat)", "HEARTBEAT_RESTORE_VERIFY_URL", 2073600),  # 24d: Kuma's own interval cap, docs/standards/budgets.md
+        ("digest tick (heartbeat)", "HEARTBEAT_DIGEST_URL", 7200),  # 2h: the tick is hourly (spec 0004 R14)
     ]
     for name, env_var, interval in push_monitors:
         monitor_id = upsert(name, type=MonitorType.PUSH, interval=interval)

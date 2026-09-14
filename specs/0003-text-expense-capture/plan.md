@@ -8,6 +8,16 @@ updated: 2026-09-13
 
 > Answers "how". If the plan contradicts the spec, the spec gets fixed first.
 
+> **Superseded in part by ADR 0046.** This plan's shape — a prompt per task, a
+> workflow per task, and merchant, category and account resolution done in the
+> workflow's own code around a single model call — is replaced by one
+> tool-calling agent. Spec 0004's T9 migrates these paths onto it and deletes
+> `capture-text`, `setup-conversation`, `structural-change`, `correction` and
+> their prompts. **This spec's requirements and acceptance criteria are
+> unchanged**, because they describe behaviour rather than implementation, and
+> its test scripts are the migration's own proof: they must pass unchanged
+> against the agent before the workflows they cover are deleted.
+
 ## Approach
 
 Bottom-up again, and for the same reason as specs 0001 and 0002: the invariant

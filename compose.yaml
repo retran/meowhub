@@ -89,6 +89,7 @@ services:
       - ./prompts:/prompts:ro
       - ./tools:/tools:ro
       - ./workflows:/workflows:ro
+      - ./i18n:/i18n:ro
     # No published port (spec 0001 T11 / R6): reachable only through the
     # proxy below, never directly from the host.
     healthcheck:

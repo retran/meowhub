@@ -1,0 +1,125 @@
+{
+  "prompt": "agent",
+  "version": "v1",
+  "_why": "ADR 0025: a prompt is judged against cases, not against an impression. One prompt now serves capture and questions alike (ADR 0046), so a change made for one can regress the other -- both live in this one set, in both languages. Each case says what the agent must *do* on its turn: which tool it reaches for, whether it asks rather than guesses, or what its reply must carry once the tools have answered.",
+  "cases": [
+    {
+      "id": "capture-bare-en",
+      "text": "coffee 350 with the card",
+      "language": "en",
+      "expect": { "tool_in": ["find_merchant", "find_category", "record_transaction", "find_account"] }
+    },
+    {
+      "id": "capture-bare-ru",
+      "text": "кофе 350 картой",
+      "language": "ru",
+      "expect": { "tool_in": ["find_merchant", "find_category", "record_transaction", "find_account"] }
+    },
+    {
+      "id": "capture-needs-question-en",
+      "text": "lunch today",
+      "language": "en",
+      "expect": { "asks_question": true }
+    },
+    {
+      "id": "capture-needs-question-ru",
+      "text": "обед сегодня",
+      "language": "ru",
+      "expect": { "asks_question": true, "language": "ru" }
+    },
+    {
+      "id": "correction-en",
+      "text": "that was 35 not 350",
+      "language": "en",
+      "history": [
+        { "role": "user", "text": "coffee 350" },
+        { "role": "assistant", "text": "Recorded as dining, from the current account." }
+      ],
+      "expect": { "tool_in": ["correct_transaction", "find_recent_transaction", "list_recent_captures"] }
+    },
+    {
+      "id": "correction-ru",
+      "text": "это было 35, а не 350",
+      "language": "ru",
+      "history": [
+        { "role": "user", "text": "кофе 350" },
+        { "role": "assistant", "text": "Записал как питание, с текущего счёта." }
+      ],
+      "expect": { "tool_in": ["correct_transaction", "find_recent_transaction", "list_recent_captures"] }
+    },
+    {
+      "id": "spend-question-en",
+      "text": "how much did we spend this month",
+      "language": "en",
+      "expect": { "tool_in": ["spend_total"], "tool_args_contain": { "period": "this_month" } }
+    },
+    {
+      "id": "spend-question-ru",
+      "text": "сколько мы потратили в этом месяце",
+      "language": "ru",
+      "expect": { "tool_in": ["spend_total"], "tool_args_contain": { "period": "this_month" } }
+    },
+    {
+      "id": "ranked-question-en",
+      "text": "what did we spend the most on last month",
+      "language": "en",
+      "expect": { "tool_in": ["spend_by_category"], "tool_args_contain": { "period": "last_month" } }
+    },
+    {
+      "id": "ranked-question-ru",
+      "text": "на что мы тратили больше всего в том месяце",
+      "language": "ru",
+      "expect": { "tool_in": ["spend_by_category"], "tool_args_contain": { "period": "last_month" } }
+    },
+    {
+      "id": "account-question-en",
+      "text": "what is on the current account",
+      "language": "en",
+      "expect": { "tool_in": ["account_balance", "find_account", "household_position"] }
+    },
+    {
+      "id": "account-question-ru",
+      "text": "сколько на текущем счету",
+      "language": "ru",
+      "expect": { "tool_in": ["account_balance", "find_account", "household_position"] }
+    },
+    {
+      "id": "refusal-en",
+      "text": "can we afford a holiday in July",
+      "language": "en",
+      "expect": { "no_tool_call": true, "reply_matches": "(?i)can('| no)?t|only|instead|tell you" }
+    },
+    {
+      "id": "refusal-ru",
+      "text": "можем ли мы позволить себе отпуск в июле",
+      "language": "ru",
+      "expect": { "no_tool_call": true, "language": "ru" }
+    },
+    {
+      "id": "answers-from-the-tool-en",
+      "text": "how much did we spend this month",
+      "language": "en",
+      "tool_results": [
+        {
+          "tool": "spend_total",
+          "arguments": { "period": "this_month" },
+          "result": { "rows": [{ "period": "this_month", "period_start": "2026-09-01", "period_end": "2026-09-30", "amount_minor": 10100, "previous_amount_minor": 8800, "unconfirmed_amount_minor": 2500 }] }
+        }
+      ],
+      "expect": { "no_tool_call": true, "reply_contains": ["101"], "reply_excludes": ["10100"] }
+    },
+    {
+      "id": "answers-from-the-tool-ru",
+      "text": "сколько мы потратили в этом месяце",
+      "language": "ru",
+      "tool_results": [
+        {
+          "tool": "spend_total",
+          "arguments": { "period": "this_month" },
+          "result": { "rows": [{ "period": "this_month", "period_start": "2026-09-01", "period_end": "2026-09-30", "amount_minor": 10100, "previous_amount_minor": 8800, "unconfirmed_amount_minor": 2500 }] }
+        }
+      ],
+      "expect": { "no_tool_call": true, "reply_contains": ["101"], "language": "ru" }
+    }
+  ]
+}

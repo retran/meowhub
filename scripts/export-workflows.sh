@@ -8,6 +8,12 @@ set -euo pipefail
 
 COMPOSE="docker compose -f compose.yaml"
 
+# Clear the container-side directory first: n8n writes into it without
+# clearing it, so a workflow deleted from n8n would leave its last
+# export behind and be copied back into this repository on every run —
+# silently undoing the deletion, and invisible to drift detection
+# because both sides would then agree.
+$COMPOSE exec -T n8n rm -rf /tmp/workflow-export
 $COMPOSE exec -T n8n n8n export:workflow --all --separate --output=/tmp/workflow-export --pretty >&2
 rm -rf /tmp/meowhub-workflow-export
 mkdir -p /tmp/meowhub-workflow-export

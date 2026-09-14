@@ -1,0 +1,16 @@
+{
+  "name": "spend_by_category_trend",
+  "version": 1,
+  "purpose": "One category's spend across every calendar month it has any -- a trend, not a period figure. From v_category_spend_by_month only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["category_slug"],
+    "properties": {
+      "category_slug": { "type": "string" }
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "spend_by_category",
+  "version": 1,
+  "purpose": "Spend by category for a period, ranked by amount descending when no single category is named. This is the tool for \"what did we spend the most ON\" -- which categories took the most (R2's ranked-category question) -- and for \"how much on groceries\". From v_category_spend only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "period"
+    ],
+    "properties": {
+      "period": {
+        "type": "string",
+        "pattern": "^(this_month|last_month|this_year|last_year|last_7_days|last_30_days|month_of:[0-9]{4}-(0[1-9]|1[0-2]))$",
+        "description": "One of the fixed period names (ADR 0045): this_month, last_month, this_year, last_year, last_7_days, last_30_days, or month_of:YYYY-MM for a named month. Any other value is refused: do not invent a date or a range."
+      },
+      "category_slug": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "Null asks for every category, ranked; set asks for one."
+      }
+    }
+  }
+}

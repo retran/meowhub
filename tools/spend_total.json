@@ -1,0 +1,22 @@
+{
+  "name": "spend_total",
+  "version": 1,
+  "purpose": "The household's total spend for a period, transfers excluded, with the previous period and unconfirmed share (ADR 0045, R2's period totals). From v_period_spend only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "period"
+    ],
+    "properties": {
+      "period": {
+        "type": "string",
+        "description": "One of the fixed period names (ADR 0045): this_month, last_month, this_year, last_year, last_7_days, last_30_days, or month_of:YYYY-MM for a named month. Any other value is refused: do not invent a date or a range.",
+        "pattern": "^(this_month|last_month|this_year|last_year|last_7_days|last_30_days|month_of:[0-9]{4}-(0[1-9]|1[0-2]))$"
+      }
+    }
+  }
+}

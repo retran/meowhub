@@ -1,0 +1,13 @@
+{
+  "name": "liability_summary",
+  "version": 1,
+  "purpose": "What is owed, per liability and in total, with headroom against each limit. From v_liability_summary only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

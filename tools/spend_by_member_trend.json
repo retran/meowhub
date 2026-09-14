@@ -1,0 +1,16 @@
+{
+  "name": "spend_by_member_trend",
+  "version": 1,
+  "purpose": "One member's spend across every calendar month they have any. From v_member_spend_by_month only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["member_id"],
+    "properties": {
+      "member_id": { "type": "integer" }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "transaction_lines",
+  "version": 1,
+  "purpose": "Both sides of one transaction -- each account, its amount, and the merchant -- so the agent can see what it is about to repeat, correct or reverse. From v_account_movement only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" }
+    }
+  }
+}

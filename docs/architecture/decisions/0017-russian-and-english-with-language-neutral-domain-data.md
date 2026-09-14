@@ -6,7 +6,7 @@ date: 2026-09-12
 deciders: owner
 supersedes: []
 superseded-by: []
-amended-by: [0031]
+amended-by: [0031, 0046]
 ---
 
 # ADR 0017 — Russian and English, with domain data stored language-neutral

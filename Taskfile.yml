@@ -83,6 +83,7 @@ tasks:
     desc: The message catalogue — missing keys fail loudly, both languages stay in step (ADR 0017)
     cmds:
       - bash scripts/test-i18n.sh
+      - bash scripts/test-digest-language.sh
 
   test:workflows:
     desc: n8n end-to-end tests with the model gateway stubbed (run on demand — ADR 0015)
@@ -104,6 +105,12 @@ tasks:
       - bash scripts/test-auto-confirm-quiet.sh
       - bash scripts/test-conveniences.sh
       - bash scripts/test-admin-queue.sh
+      - bash scripts/test-agent-loop.sh
+      - bash scripts/test-answer-question.sh
+      - bash scripts/test-figure-traceability.sh
+      - bash scripts/test-answerable-questions.sh
+      - bash scripts/test-search-why-export.sh
+      - bash scripts/test-digest.sh
 
   test:ingress:
     desc: The boundary — no container port reachable except through the proxy, TLS terminates there (spec 0001 T11, A6)
@@ -115,6 +122,7 @@ tasks:
     desc: Uptime Kuma's dead man's switch — silence past the window becomes an alert (spec 0001 T13, ADR 0020)
     cmds:
       - bash scripts/test-heartbeat-alert.sh
+      - bash scripts/test-digest-heartbeat.sh
 
   test:backup:
     desc: A snapshot exists, is ciphertext, and the offsite variable is the only difference (spec 0001 T14, ADR 0009)

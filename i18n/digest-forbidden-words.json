@@ -1,0 +1,17 @@
+{
+  "_why": "R12 and docs/standards/agent-persona.md: a digest reports figures and nothing else. Accounting vocabulary (vision principle 10), advice and judgement are all forbidden in it, in both languages. The check runs against the templates themselves (scripts/test-digest-language.sh), so a new string cannot smuggle one in unnoticed.",
+  "accounting": [
+    "posting", "debit", "credit", "ledger", "double-entry", "chart of accounts",
+    "accrual", "balance sheet", "journal entry",
+    "проводка", "дебет", "кредит", "регистр", "двойная запись", "план счетов"
+  ],
+  "advice": [
+    "should", "consider", "try to", "recommend", "suggest", "tip", "why not",
+    "советую", "рекомендую", "стоит", "попробуйте", "совет"
+  ],
+  "judgement": [
+    "too much", "overspent", "splurge", "careful", "worrying", "impressive",
+    "well done", "unfortunately", "sadly", "great",
+    "слишком", "перерасход", "многовато", "осторожн", "молодцы", "увы", "отлично"
+  ]
+}

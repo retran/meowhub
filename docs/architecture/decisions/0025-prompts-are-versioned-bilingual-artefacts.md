@@ -6,6 +6,7 @@ date: 2026-09-12
 deciders: owner
 supersedes: []
 superseded-by: []
+amended-by: [0046]
 ---
 
 # ADR 0025 — Prompts are versioned bilingual artefacts in this repository, gated by the golden set

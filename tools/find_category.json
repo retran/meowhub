@@ -1,0 +1,15 @@
+{
+  "name": "find_category",
+  "version": 1,
+  "purpose": "Look up the household's categories by slug or by display name in either language. From v_category only. Call this before create_category -- a category that nearly duplicates an existing one is a real cost to the household.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "text": { "type": ["string", "null"], "description": "Matched case-insensitively against slugs and display names. Null lists every category." }
+    }
+  }
+}

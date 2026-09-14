@@ -1,0 +1,17 @@
+{
+  "name": "set_household_setting",
+  "version": 1,
+  "purpose": "Set one of the household's own settings -- its timezone, its default currency, the auto-confirm threshold and quiet period. Always an admin's own decision (ADR 0034: a setting the household changes is a row, never an environment variable), so a non-admin's attempt is refused at the database.",
+  "shape": "acts_as",
+  "permission": "hh_admin",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["key", "value"],
+    "properties": {
+      "key": { "type": "string", "description": "For example timezone, default_currency, auto_confirm_threshold_minor, auto_confirm_quiet_period_hours." },
+      "value": { "type": "string", "description": "Stored as JSON; a number is written as a number, anything else as a string." }
+    }
+  }
+}

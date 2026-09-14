@@ -82,4 +82,5 @@ cadence is settled.
 |---|---|---|
 | Drift check | **24 h** | Runs daily at 03:00 from the scheduler container (spec 0001 T16); the window is one full cycle, so a single slow or missed run does not itself alarm |
 | Nightly backup | **36 h** | Meant to run nightly (spec 0001 T14); half again as long as its own cadence so one slow night is not a false alarm, tightened once it actually runs on a schedule |
+| Digest tick | **2 h** | The tick runs hourly (spec 0004 T11) and pushes only when it answered; twice its own cadence, so one missed hour is not a false alarm but a stopped digest is noticed the same morning |
 | Monthly restore verification | **24 days** | Meant to run monthly (spec 0001 T15); Kuma's own interval cap (2,073,600 s) is the actual ceiling here, not a chosen number — the closest this window gets to "monthly, generous" |

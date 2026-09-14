@@ -189,9 +189,11 @@ Between phases 3 and 4, and not before: the household cannot use a laptop.
    [data-model.md](architecture/data-model.md)'s catalogue: totals, by category,
    by merchant, by member, period comparison, unconfirmed share — with their
    signatures snapshotted from the first migration.
-2. The question-to-query mapping, its prompt and its refusal path — the model
-   returns a query name and parameters, never a number.
-3. Answer formatting in both languages, every figure with its period.
+2. The read tools over those views, and **the agent's tool-calling loop**
+   (ADR 0046) — one prompt, one loop, the tools doing the database work. Spec
+   0003's per-task prompts and workflows are migrated onto it and deleted.
+3. Answers the agent writes itself, in the member's language, every figure with
+   its period and traceable to the tool result it came from.
 4. The weekly and monthly digests, their schedules, their heartbeats, and the
    per-member opt-out.
 4a. **Search** over notes, merchants and captures; **"why this category"**; and

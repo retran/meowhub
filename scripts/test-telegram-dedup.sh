@@ -48,11 +48,7 @@ docker compose cp "$TMP" n8n:/tmp/dedup-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/dedup-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=dedupentry0001 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 
 UPDATE_ID=$(( RANDOM + 900000000 ))
 PAYLOAD="{\"update\": {\"update_id\": ${UPDATE_ID}, \"message\": {\"from\": {\"id\": 1, \"language_code\": \"ru\"}, \"chat\": {\"id\": -999}, \"text\": \"dedup test\", \"message_thread_id\": null}}, \"source\": \"dedup-test\"}"

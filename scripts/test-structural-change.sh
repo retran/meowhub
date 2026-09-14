@@ -39,14 +39,38 @@ psql_meowhub -c "
   insert into member_channel (member_id, kind, external_id, linked_by) values (${MEMBER_ID}, 'telegram', '${NONADMIN_TELEGRAM_ID}', ${ADMIN_ID});
 " >/dev/null
 
+# Each statement is its own transaction (-f, not -c): one failure here
+# must not silently roll back the others, which is how the fixture
+# account survived earlier runs and then failed the *next* run's first
+# assertion -- and test-capture-text's A31, which asks about "savings"
+# precisely because the household has none.
+remove_fixtures() {
+  psql_meowhub -v ON_ERROR_STOP=0 -f /dev/stdin >/dev/null 2>&1 <<'SQL' || true
+select set_config('meowhub.actor', 'test-suite', false);
+update member set default_payment_account_id = null
+  where default_payment_account_id in (select id from account where name = 'Savings');
+delete from capture where transaction_id in (
+  select distinct p.transaction_id from posting p join account a on a.id = p.account_id where a.name = 'Savings');
+delete from posting where transaction_id in (
+  select distinct p.transaction_id from posting p join account a on a.id = p.account_id where a.name = 'Savings');
+delete from transaction where id not in (select transaction_id from posting);
+delete from account where name = 'Savings';
+SQL
+}
+
+# Debris from an interrupted earlier run would fail this test's own
+# first assertion, so it is cleared before anything is asserted.
+remove_fixtures
+
 cleanup() {
   psql_meowhub -c "
     select set_config('meowhub.actor', 'test-suite', true);
+    delete from capture where member_id in (${ADMIN_ID}, ${MEMBER_ID});
     delete from conversation where member_id in (${ADMIN_ID}, ${MEMBER_ID});
     delete from member_channel where member_id in (${ADMIN_ID}, ${MEMBER_ID});
-    delete from account where name = 'Savings' and type = 'asset';
     delete from member where id in (${ADMIN_ID}, ${MEMBER_ID});
   " >/dev/null 2>&1 || true
+  remove_fixtures
 }
 trap cleanup EXIT
 
@@ -107,11 +131,7 @@ docker compose cp "$TMP" n8n:/tmp/structural-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/structural-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=structtestentry1 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 rm -f "$TMP"
 
 # A4-equivalent: a non-admin's structural request creates no account.
@@ -131,11 +151,15 @@ fi
 # and attributed to the admin.
 send_message "open a Savings account" "$TELEGRAM_ID" $(( RANDOM + 200000000 ))
 sleep 1
-restated="$(psql_meowhub -t -A -c "select payload->>'account_name' from conversation where member_id = ${ADMIN_ID} and kind = 'structural_change' order by id desc limit 1;")"
-if [ "$restated" = "Savings" ]; then
-  echo "PASS: the proposed change is restated before it is applied (A3)"
+# R0b asks that the change be restated before it is applied. The old
+# workflow held the proposal in a conversation payload; the agent says
+# it, so the restatement is the reply -- and nothing exists yet.
+restated="$(psql_meowhub -t -A -c "select raw_text from capture where member_id = ${ADMIN_ID} and direction = 'outbound' order by id desc limit 1;")"
+not_yet_created="$(psql_meowhub -t -A -c "select count(*) from account where name = 'Savings';")"
+if echo "$restated" | grep -qF "Savings" && [ "$not_yet_created" = "0" ]; then
+  echo "PASS: the proposed change is restated, and nothing is applied until it is agreed (A3, R0b)"
 else
-  echo "FAILED: expected the conversation to hold the proposed account name 'Savings', got '${restated}'"
+  echo "FAILED: expected a restatement naming 'Savings' with no account yet, got reply='${restated}' accounts=${not_yet_created}"
   fail=1
 fi
 
@@ -160,11 +184,11 @@ else
   fail=1
 fi
 
-conv_closed="$(psql_meowhub -t -A -c "select count(*) from conversation where member_id = ${ADMIN_ID} and kind = 'structural_change' and closed_at is not null;")"
-if [ "$conv_closed" = "1" ]; then
-  echo "PASS: the structural-change conversation closes once applied"
+conv_open="$(psql_meowhub -t -A -c "select count(*) from conversation where member_id = ${ADMIN_ID} and closed_at is null;")"
+if [ "$conv_open" = "0" ]; then
+  echo "PASS: nothing is left waiting once the change is applied"
 else
-  echo "FAILED: expected the conversation closed, got ${conv_closed}"
+  echo "FAILED: expected no exchange left open, got ${conv_open}"
   fail=1
 fi
 

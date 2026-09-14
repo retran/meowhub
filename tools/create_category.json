@@ -1,0 +1,18 @@
+{
+  "name": "create_category",
+  "version": 1,
+  "purpose": "Propose a category the household does not have, flagged unreviewed for an admin to confirm or merge (ADR 0031, spec 0003 R13). The agent composes this (ADR 0042); the database refuses anything but an unreviewed expense category, so this tool cannot create an account of any other kind.",
+  "shape": "composes",
+  "permission": "hh_agent",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["slug", "display_name_en", "display_name_ru"],
+    "properties": {
+      "slug": { "type": "string", "pattern": "^[a-z0-9]+(([.-])[a-z0-9]+)*$", "description": "Language-neutral, lowercase, hyphenated (ADR 0017) -- never a sentence and never an account name." },
+      "display_name_en": { "type": "string", "minLength": 1 },
+      "display_name_ru": { "type": "string", "minLength": 1 }
+    }
+  }
+}

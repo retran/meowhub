@@ -80,9 +80,42 @@ cleanup() {
     delete from transaction where submitter in (${ADMIN_ID}, ${MEMBER_ID});
     delete from conversation where member_id in (${ADMIN_ID}, ${MEMBER_ID});
     delete from member_channel where member_id in (${ADMIN_ID}, ${MEMBER_ID});
-    delete from account where name in ('ABN AMRO checking', 'ICS credit card');
     delete from member where id in (${ADMIN_ID}, ${MEMBER_ID});
   " >/dev/null 2>&1 || true
+  # The fixture accounts go last and by the same FK-respecting route the
+  # pre-flight uses. A39's account carries an opening balance, so
+  # deleting the account on its own always failed on the posting
+  # foreign key -- silently, under `|| true` -- and left "ABN AMRO
+  # savings" behind for the next suite. test-capture-text's A31 asks
+  # about "savings" precisely because the household has no such
+  # account, so this test's leftovers were failing that one.
+  psql_meowhub -v ON_ERROR_STOP=0 -f /dev/stdin >/dev/null 2>&1 <<'SQL' || true
+select set_config('meowhub.actor', 'test-suite', false);
+-- A38 deletes the household timezone to make the setup genuinely
+-- half-finished. Put it back: without it v_reporting_period has no
+-- rows, so every spend view is empty and the next suite's figures
+-- vanish (ADR 0045).
+insert into household_setting (key, value, updated_by)
+select 'timezone', '"Europe/Amsterdam"', (select id from member where role = 'admin' order by id limit 1)
+where not exists (select 1 from household_setting where key = 'timezone');
+update member set default_payment_account_id = null
+  where default_payment_account_id in (select id from account where name in ('ABN AMRO checking', 'ICS credit card', 'ABN AMRO savings'));
+delete from capture where transaction_id in (
+  select distinct p.transaction_id from posting p join account a on a.id = p.account_id
+  where a.name in ('ABN AMRO checking', 'ICS credit card', 'ABN AMRO savings')
+);
+delete from posting where transaction_id in (
+  select distinct p.transaction_id from posting p join account a on a.id = p.account_id
+  where a.name in ('ABN AMRO checking', 'ICS credit card', 'ABN AMRO savings')
+);
+delete from transaction where id in (
+  select t.id from transaction t left join posting p on p.transaction_id = t.id where p.id is null
+);
+alter table account_term disable trigger account_term_deny_delete;
+delete from account_term where account_id in (select id from account where name in ('ABN AMRO checking', 'ICS credit card', 'ABN AMRO savings'));
+alter table account_term enable trigger account_term_deny_delete;
+delete from account where name in ('ABN AMRO checking', 'ICS credit card', 'ABN AMRO savings');
+SQL
 }
 trap cleanup EXIT
 
@@ -143,11 +176,7 @@ docker compose cp "$TMP" n8n:/tmp/setup-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/setup-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=setuptestentry01 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 rm -f "$TMP"
 
 # A4: a non-admin's structural request creates nothing, fails at the database.
@@ -192,12 +221,17 @@ else
   fail=1
 fi
 
-conv_closed="$(psql_meowhub -t -A -c "select count(*) from conversation where member_id = ${ADMIN_ID} and kind = 'setup' and closed_at is not null;")"
+# The interview is over when nothing is left waiting for an answer.
+# The old step machine recorded that as a closed conversation of kind
+# 'setup'; the agent records it as an exchange no longer open, which is
+# the same fact about the same table without asserting a step column
+# that no longer exists (ADR 0046).
+conv_open="$(psql_meowhub -t -A -c "select count(*) from conversation where member_id = ${ADMIN_ID} and closed_at is null;")"
 default_acct="$(psql_meowhub -t -A -c "select a.name from member m join account a on a.id = m.default_payment_account_id where m.id = ${ADMIN_ID};")"
-if [ "$conv_closed" = "1" ] && [ "$default_acct" = "ABN AMRO checking" ]; then
+if [ "$conv_open" = "0" ] && [ "$default_acct" = "ABN AMRO checking" ]; then
   echo "PASS: the interview closes and the default payment account is set (A1)"
 else
-  echo "FAILED: expected the conversation closed and default account 'ABN AMRO checking', got closed=${conv_closed} default='${default_acct}'"
+  echo "FAILED: expected nothing left waiting and default account 'ABN AMRO checking', got open=${conv_open} default='${default_acct}'"
   fail=1
 fi
 
@@ -215,17 +249,32 @@ else
   fail=1
 fi
 
-# A38: "what still needs setting up" on a paused conversation.
+# A38: "what still needs setting up", genuinely half-finished. The old
+# step machine called a fresh conversation "halfway" because its step
+# column started at the beginning; the agent reads the books, so the
+# state has to actually be half-finished for the question to have an
+# answer. Removing the household timezone is what makes it so.
+psql_meowhub -c "
+  select set_config('meowhub.actor', 'test-suite', false);
+  delete from household_setting where key = 'timezone';
+" >/dev/null
+accounts_before_asking="$(psql_meowhub -t -A -c "select count(*) from account;")"
 send_message "let's set up the accounts" "$TELEGRAM_ID" $(( RANDOM + 500000000 ))
 sleep 1
 send_message "what's left to set up?" "$TELEGRAM_ID" $(( RANDOM + 550000000 ))
 sleep 1
-paused_conv="$(psql_meowhub -t -A -c "select id from conversation where member_id = ${ADMIN_ID} and kind = 'setup' and closed_at is null order by id desc limit 1;")"
-paused_step="$(psql_meowhub -t -A -c "select step from conversation where id = ${paused_conv};")"
-if [ -n "$paused_conv" ] && [ "$paused_step" = "accounts" ]; then
-  echo "PASS: asking what remains does not advance the paused conversation (A38)"
+# R29 asks that the remaining steps be reported; A38 asks that
+# reporting them advances nothing. The old step machine expressed both
+# as a `step` column; the agent has no steps, so this asserts the two
+# things the requirement actually promises -- the exchange is still
+# open, and the reply names what is left without creating anything.
+paused_conv="$(psql_meowhub -t -A -c "select id from conversation where member_id = ${ADMIN_ID} and closed_at is null order by id desc limit 1;")"
+accounts_after_asking="$(psql_meowhub -t -A -c "select count(*) from account;")"
+whats_left_reply="$(psql_meowhub -t -A -c "select raw_text from capture where member_id = ${ADMIN_ID} and direction = 'outbound' order by id desc limit 1;")"
+if [ -n "$paused_conv" ] && [ "$accounts_after_asking" = "$accounts_before_asking" ] && echo "$whats_left_reply" | grep -qiE "still to do|timezone|default"; then
+  echo "PASS: asking what remains reports it and advances nothing (A38, R29)"
 else
-  echo "FAILED: expected the conversation still open on step 'accounts', got conv='${paused_conv}' step='${paused_step}'"
+  echo "FAILED: expected an open exchange, no new account, and a reply naming what is left; got conv='${paused_conv}' accounts=${accounts_after_asking} (was ${accounts_before_asking}) reply='${whats_left_reply}'"
   fail=1
 fi
 
@@ -234,22 +283,21 @@ fi
 # proving its state lives in the database (ADR 0038), not in an
 # execution context that a restart would wipe.
 $COMPOSE restart n8n postgres >/dev/null
-for i in $(seq 1 30); do
-  n8n_h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  pg_h="$($COMPOSE ps postgres --format '{{.Health}}' 2>/dev/null)"
-  [ "$n8n_h" = "healthy" ] && [ "$pg_h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 
-resumed_step="$(psql_meowhub -t -A -c "select step from conversation where id = ${paused_conv};")"
+# R0e's claim is that the state is in PostgreSQL, so a restart loses
+# nothing. What proves it is that the same exchange is still there
+# afterwards, with its messages intact, and that the next answer is
+# understood in its context -- not that a `step` column survived.
+resumed_messages="$(psql_meowhub -t -A -c "select count(*) from capture where conversation_id = ${paused_conv};")"
 send_message "ABN AMRO savings, has 100 in it" "$TELEGRAM_ID" $(( RANDOM + 560000000 ))
 sleep 1
 resumed_after_message="$(psql_meowhub -t -A -c "select count(*) from conversation where id = ${paused_conv} and closed_at is null;")"
 resumed_account="$(psql_meowhub -t -A -c "select count(*) from account where name = 'ABN AMRO savings';")"
-if [ "$resumed_step" = "accounts" ] && [ "$resumed_after_message" = "1" ] && [ "$resumed_account" = "1" ]; then
-  echo "PASS: the paused conversation resumes at the same step after a container restart (A39)"
+if [ "$resumed_messages" -ge "2" ] && [ "$resumed_after_message" = "1" ] && [ "$resumed_account" = "1" ]; then
+  echo "PASS: the paused exchange survives a container restart and the next answer lands in it (A39)"
 else
-  echo "FAILED: expected the same conversation to resume on step 'accounts' and accept the next answer, got step='${resumed_step}' still_open='${resumed_after_message}' account_created='${resumed_account}'"
+  echo "FAILED: expected the exchange intact after the restart and the next answer accepted, got messages=${resumed_messages} still_open='${resumed_after_message}' account_created='${resumed_account}'"
   fail=1
 fi
 

@@ -163,3 +163,5 @@ Decisions scoped to a single feature live in that feature's `plan.md`.
 | [0042](0042-a-tool-call-runs-as-the-acting-identity.md) | A tool call writes as the member it acts for, never as the agent alone | accepted | 2026-09-13 |
 | [0043](0043-a-shared-group-chat-alongside-private-ones.md) | A member may message the bot privately or from one shared household group | accepted | 2026-09-13 |
 | [0044](0044-the-agent-keeps-its-own-memory.md) | The agent keeps its own memory, separate from the ledger and from conversation state | accepted | 2026-09-13 |
+| [0045](0045-reporting-periods-are-a-fixed-vocabulary.md) | Reporting periods are a fixed vocabulary resolved in SQL | accepted | 2026-09-13 |
+| [0046](0046-the-agent-is-one-tool-calling-loop.md) | The agent is one tool-calling loop that writes its own replies | accepted | 2026-09-13 |

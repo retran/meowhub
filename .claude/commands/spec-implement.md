@@ -30,10 +30,15 @@ Implement tasks for: $ARGUMENTS
 6. When all tasks are closed: run the full clean rebuild once (drop volumes,
    rebuild images, `task up` alone, `task seed`, `task test` alone, each
    checked by its real exit code) and confirm every task's targeted test
-   still passes against it. Then commit — one commit for the whole spec's
-   implementation, not one per task — and say so, suggesting `/spec-review`.
-   Status `done` is only set after review.
+   still passes against it. Then commit — **one commit for the whole spec**,
+   not one per task — and say so, suggesting `/spec-review`. Status `done`
+   is only set after review.
 
 Write everything in English, including commit messages.
+
+Commit messages follow Conventional Commits and carry **no attribution
+trailer of any kind** — see *Commits* in `CLAUDE.md`. A slice is
+`feat(spec-NNNN): ...`; its body says why, names the real bugs found, and
+says what proved the work.
 
 Do not commit or push until the user asks.

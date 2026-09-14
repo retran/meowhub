@@ -88,8 +88,30 @@ phase is built and verified on a laptop before anything is deployed.
 
 ### Commits
 
-**No attribution trailers, ever.** A commit message in this repository ends with
-its last sentence: no `Co-Authored-By`, no session link, no tool byline. The
+**Conventional Commits, always.** The subject line is
+`type(scope): summary in the imperative`, lower case, no trailing full stop, and
+short enough to read in a log. The types in use here:
+
+| Type | For |
+|---|---|
+| `feat` | a slice's behaviour: what the household can now do |
+| `fix` | a defect in something already shipped |
+| `docs` | specs, ADRs, plans, guides — the artifacts, not the code |
+| `refactor` | shape changes with no behaviour change |
+| `test` | tests added or repaired on their own |
+| `chore` | tooling, dependencies, housekeeping |
+
+The scope is the slice when there is one — `feat(spec-0003): ...` — or the area
+otherwise: `docs(specs)`, `chore(compose)`. The body explains *why*, names the
+real bugs found and what proved the work, and wraps at 72 characters.
+
+**One commit per spec.** A slice lands as a single commit, not one per task:
+the history should read as a list of what the household gained, not as a
+transcript of how it was built. Intermediate task-by-task commits are squashed
+before the slice is pushed.
+
+**No attribution trailers, ever.** A commit message ends with its last sentence:
+no `Co-Authored-By`, no session link, no tool byline, no "generated with". The
 history records what changed and why, and authorship is the repository owner's.
 This is enforced by `includeCoAuthoredBy: false` in `.claude/settings.json` and
 holds regardless of what any default would add.

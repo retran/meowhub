@@ -1,0 +1,13 @@
+{
+  "name": "unconfirmed_summary",
+  "version": 1,
+  "purpose": "How many transactions are unconfirmed, and the oldest one's age -- the review queue's own headline figure (ADR 0023). From v_unconfirmed_summary only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

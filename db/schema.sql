@@ -16,6 +16,20 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
+-- Name: pg_trgm; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION pg_trgm; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION pg_trgm IS 'text similarity measurement and index searching based on trigrams';
+
+
+--
 -- Name: pgcrypto; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -27,6 +41,20 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 --
 
 COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
+
+
+--
+-- Name: unaccent; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION unaccent; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION unaccent IS 'text search dictionary that removes accents';
 
 
 --
@@ -147,6 +175,58 @@ $$;
 
 
 --
+-- Name: digest_due(timestamp with time zone); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.digest_due(at timestamp with time zone DEFAULT now()) RETURNS TABLE(member_id bigint, kind text, period_start date, period text, language text)
+    LANGUAGE sql STABLE
+    AS $$
+  with tz as (
+    select coalesce((select value #>> '{}' from household_setting where key = 'timezone'), 'UTC') as zone
+  ),
+  local as (select (at at time zone (select zone from tz)) as ts),
+  due as (
+    select 'weekly'::text as kind,
+           date_trunc('week', (select ts from local))::date as period_start,
+           'last_7_days'::text as period,
+           (select ts from local) >= date_trunc('week', (select ts from local)) + interval '9 hours' as reached
+    union all
+    select 'monthly'::text,
+           date_trunc('month', (select ts from local))::date,
+           'last_month'::text,
+           (select ts from local) >= date_trunc('month', (select ts from local)) + interval '9 hours'
+  )
+  select m.id, d.kind, d.period_start, d.period, m.language
+  from member m
+  cross join due d
+  where m.active
+    and d.reached
+    and case d.kind when 'weekly' then m.digest_weekly else m.digest_monthly end
+    and not exists (
+      select 1 from digest_run r
+      where r.member_id = m.id and r.kind = d.kind and r.period_start = d.period_start
+    );
+$$;
+
+
+--
+-- Name: FUNCTION digest_due(at timestamp with time zone); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.digest_due(at timestamp with time zone) IS 'Who is due a digest at a given moment and has not had it (R9, R10, R15, R17). Monday 09:00 and the 1st at 09:00, in the household''s timezone; a missed hour self-heals because the answer stays true until the row exists.';
+
+
+--
+-- Name: immutable_unaccent(text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.immutable_unaccent(text) RETURNS text
+    LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    SET search_path TO 'pg_catalog', 'public'
+    AS $_$ select public.unaccent('public.unaccent'::regdictionary, $1) $_$;
+
+
+--
 -- Name: ledger_probe_member_update_guard(); Type: FUNCTION; Schema: public; Owner: -
 --
 
@@ -168,6 +248,80 @@ begin
   return new;
 end;
 $$;
+
+
+--
+-- Name: period_bounds(text, text); Type: FUNCTION; Schema: public; Owner: -
+--
+
+CREATE FUNCTION public.period_bounds(p_period text, p_tz text) RETURNS TABLE(period text, period_start date, period_end date, previous_start date, previous_end date)
+    LANGUAGE plpgsql
+    AS $$
+declare
+  v_today date := (now() at time zone p_tz)::date;
+  v_start date;
+  v_end date;
+  v_prev_start date;
+  v_prev_end date;
+  v_month text;
+begin
+  if p_period = 'this_month' then
+    v_start := date_trunc('month', v_today)::date;
+    v_end := (date_trunc('month', v_today) + interval '1 month - 1 day')::date;
+    v_prev_start := (v_start - interval '1 month')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+
+  elsif p_period = 'last_month' then
+    v_start := (date_trunc('month', v_today) - interval '1 month')::date;
+    v_end := (date_trunc('month', v_today) - interval '1 day')::date;
+    v_prev_start := (v_start - interval '1 month')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+
+  elsif p_period like 'month_of:%' then
+    v_month := substring(p_period from 10);
+    v_start := to_date(v_month || '-01', 'YYYY-MM-DD');
+    v_end := (v_start + interval '1 month - 1 day')::date;
+    v_prev_start := (v_start - interval '1 month')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+
+  elsif p_period = 'this_year' then
+    v_start := date_trunc('year', v_today)::date;
+    v_end := (date_trunc('year', v_today) + interval '1 year - 1 day')::date;
+    v_prev_start := (v_start - interval '1 year')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+
+  elsif p_period = 'last_year' then
+    v_start := (date_trunc('year', v_today) - interval '1 year')::date;
+    v_end := (date_trunc('year', v_today) - interval '1 day')::date;
+    v_prev_start := (v_start - interval '1 year')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+
+  elsif p_period = 'last_7_days' then
+    v_end := v_today;
+    v_start := (v_today - interval '6 days')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+    v_prev_start := (v_prev_end - interval '6 days')::date;
+
+  elsif p_period = 'last_30_days' then
+    v_end := v_today;
+    v_start := (v_today - interval '29 days')::date;
+    v_prev_end := (v_start - interval '1 day')::date;
+    v_prev_start := (v_prev_end - interval '29 days')::date;
+
+  else
+    raise exception 'period_bounds: % is not a period this household can be asked about', p_period;
+  end if;
+
+  return query select p_period, v_start, v_end, v_prev_start, v_prev_end;
+end;
+$$;
+
+
+--
+-- Name: FUNCTION period_bounds(p_period text, p_tz text); Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON FUNCTION public.period_bounds(p_period text, p_tz text) IS 'ADR 0045: the one place a reporting period becomes date bounds, in the household''s own timezone, including the matching previous period.';
 
 
 --
@@ -699,6 +853,43 @@ ALTER TABLE public.correction_request ALTER COLUMN id ADD GENERATED ALWAYS AS ID
 
 
 --
+-- Name: digest_run; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.digest_run (
+    id bigint NOT NULL,
+    member_id bigint NOT NULL,
+    kind text NOT NULL,
+    period_start date NOT NULL,
+    sent_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT digest_run_kind_check CHECK ((kind = ANY (ARRAY['weekly'::text, 'monthly'::text])))
+);
+
+ALTER TABLE ONLY public.digest_run FORCE ROW LEVEL SECURITY;
+
+
+--
+-- Name: TABLE digest_run; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON TABLE public.digest_run IS 'One row per digest actually sent (R9, R10). Unique on (member_id, kind, period_start): the insert is the send''s gate, which is what makes the hourly tick idempotent and self-healing.';
+
+
+--
+-- Name: digest_run_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+ALTER TABLE public.digest_run ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME public.digest_run_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+--
 -- Name: file; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -786,6 +977,8 @@ CREATE TABLE public.member (
     active boolean DEFAULT true NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     default_payment_account_id bigint,
+    digest_weekly boolean DEFAULT true NOT NULL,
+    digest_monthly boolean DEFAULT true NOT NULL,
     CONSTRAINT member_role_check CHECK ((role = ANY (ARRAY['admin'::text, 'member'::text])))
 );
 
@@ -1200,6 +1393,36 @@ COMMENT ON VIEW public.v_account_balance IS 'Balance, limit and headroom per acc
 
 
 --
+-- Name: v_account_movement; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_account_movement WITH (security_invoker='true') AS
+ SELECT p.id AS posting_id,
+    p.transaction_id,
+    t.date,
+    p.account_id,
+    a.name AS account_name,
+    a.type AS account_type,
+    p.amount AS amount_minor,
+    p.currency,
+    t.note,
+    m.name AS merchant_name,
+    t.submitter,
+    t.confirmation_state
+   FROM (((public.posting p
+     JOIN public.transaction t ON ((t.id = p.transaction_id)))
+     JOIN public.account a ON ((a.id = p.account_id)))
+     LEFT JOIN public.merchant m ON ((m.id = t.merchant_id)));
+
+
+--
+-- Name: VIEW v_account_movement; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_account_movement IS 'One row per posting with its account, date, amount and merchant: R2''s "what changed on this account" and "what were the largest expenses" questions. Filter by account_name and date for the first, by account_type = expense and amount for the second.';
+
+
+--
 -- Name: v_category; Type: VIEW; Schema: public; Owner: -
 --
 
@@ -1224,26 +1447,365 @@ COMMENT ON VIEW public.v_category IS 'Expense accounts as categories, with displ
 
 
 --
+-- Name: v_reporting_period; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_reporting_period WITH (security_invoker='true') AS
+ SELECT pb.period,
+    pb.period_start,
+    pb.period_end,
+    pb.previous_start,
+    pb.previous_end
+   FROM ((public.household_setting hs
+     CROSS JOIN LATERAL ( VALUES ('this_month'::text), ('last_month'::text), ('this_year'::text), ('last_year'::text), ('last_7_days'::text), ('last_30_days'::text)) fixed(period))
+     CROSS JOIN LATERAL public.period_bounds(fixed.period, (hs.value #>> '{}'::text[])) pb(period, period_start, period_end, previous_start, previous_end))
+  WHERE (hs.key = 'timezone'::text)
+UNION ALL
+ SELECT pb.period,
+    pb.period_start,
+    pb.period_end,
+    pb.previous_start,
+    pb.previous_end
+   FROM (((public.household_setting hs
+     CROSS JOIN LATERAL generate_series(0, 24) months_back(months_back))
+     CROSS JOIN LATERAL ( SELECT ('month_of:'::text || to_char((date_trunc('month'::text, (((now() AT TIME ZONE (hs.value #>> '{}'::text[])))::date)::timestamp with time zone) - ((months_back.months_back || ' months'::text))::interval), 'YYYY-MM'::text)) AS "?column?") m(period))
+     CROSS JOIN LATERAL public.period_bounds(m.period, (hs.value #>> '{}'::text[])) pb(period, period_start, period_end, previous_start, previous_end))
+  WHERE (hs.key = 'timezone'::text);
+
+
+--
+-- Name: VIEW v_reporting_period; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_reporting_period IS 'ADR 0045: every period this household can currently be asked about, with its bounds and its previous period''s bounds, joined once rather than resolved per question.';
+
+
+--
+-- Name: v_category_spend; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_category_spend WITH (security_invoker='true') AS
+ SELECT rp.period,
+    rp.period_start,
+    rp.period_end,
+    cat.id AS category_id,
+    cat.name AS category_slug,
+    COALESCE(cur.amount_minor, (0)::numeric) AS amount_minor,
+    COALESCE(prev.amount_minor, (0)::numeric) AS previous_amount_minor,
+    (COALESCE(cur.amount_minor, (0)::numeric) - COALESCE(prev.amount_minor, (0)::numeric)) AS delta_minor,
+    COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) AS unconfirmed_amount_minor,
+        CASE
+            WHEN (COALESCE(cur.amount_minor, (0)::numeric) = (0)::numeric) THEN (0)::numeric
+            ELSE round((COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) / cur.amount_minor), 4)
+        END AS unconfirmed_share
+   FROM (((public.v_reporting_period rp
+     CROSS JOIN public.account cat)
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor,
+            sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+           FROM (public.posting p
+             JOIN public.transaction t ON ((t.id = p.transaction_id)))
+          WHERE ((p.account_id = cat.id) AND ((t.date >= rp.period_start) AND (t.date <= rp.period_end)))) cur ON (true))
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor
+           FROM (public.posting p
+             JOIN public.transaction t ON ((t.id = p.transaction_id)))
+          WHERE ((p.account_id = cat.id) AND ((t.date >= rp.previous_start) AND (t.date <= rp.previous_end)))) prev ON (true))
+  WHERE (cat.type = 'expense'::text);
+
+
+--
+-- Name: VIEW v_category_spend; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_category_spend IS 'Spend per category for every reporting period (R2''s "by category" and "ranked" questions -- rank by ordering amount_minor descending, never a separate view).';
+
+
+--
+-- Name: v_category_spend_by_month; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_category_spend_by_month WITH (security_invoker='true') AS
+ SELECT cat.id AS category_id,
+    cat.name AS category_slug,
+    (date_trunc('month'::text, (t.date)::timestamp with time zone))::date AS month,
+    sum(p.amount) AS amount_minor,
+    sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+   FROM ((public.account cat
+     JOIN public.posting p ON ((p.account_id = cat.id)))
+     JOIN public.transaction t ON ((t.id = p.transaction_id)))
+  WHERE (cat.type = 'expense'::text)
+  GROUP BY cat.id, cat.name, (date_trunc('month'::text, (t.date)::timestamp with time zone));
+
+
+--
+-- Name: VIEW v_category_spend_by_month; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_category_spend_by_month IS 'One category''s spend across every calendar month it has any -- the trend a period-scoped question cannot answer.';
+
+
+--
+-- Name: v_household_position; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_household_position WITH (security_invoker='true') AS
+ SELECT COALESCE(sum(balance) FILTER (WHERE (type = 'asset'::text)), (0)::numeric) AS holdings_minor,
+    COALESCE(sum(balance) FILTER (WHERE (type = 'liability'::text)), (0)::numeric) AS owed_minor,
+    (COALESCE(sum(balance) FILTER (WHERE (type = 'asset'::text)), (0)::numeric) - COALESCE(sum(balance) FILTER (WHERE (type = 'liability'::text)), (0)::numeric)) AS net_position_minor
+   FROM public.v_account_balance;
+
+
+--
+-- Name: VIEW v_household_position; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_household_position IS 'What the household holds in total, what it owes in total, and its net position -- one row, R2''s "state of the accounts" questions.';
+
+
+--
+-- Name: v_liability_summary; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_liability_summary WITH (security_invoker='true') AS
+ SELECT v_account_balance.account_id,
+    v_account_balance.name,
+    v_account_balance.balance AS balance_minor,
+    v_account_balance.limit_amount AS limit_minor,
+    v_account_balance.headroom AS headroom_minor
+   FROM public.v_account_balance
+  WHERE (v_account_balance.type = 'liability'::text)
+UNION ALL
+ SELECT NULL::bigint AS account_id,
+    'Total'::text AS name,
+    sum(v_account_balance.balance) AS balance_minor,
+    sum(v_account_balance.limit_amount) AS limit_minor,
+    sum(v_account_balance.headroom) AS headroom_minor
+   FROM public.v_account_balance
+  WHERE (v_account_balance.type = 'liability'::text);
+
+
+--
+-- Name: VIEW v_liability_summary; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_liability_summary IS 'What is owed, per liability and in total (the row with account_id null) -- R2''s "what it owes" and "headroom" questions.';
+
+
+--
+-- Name: v_member_spend; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_member_spend WITH (security_invoker='true') AS
+ SELECT rp.period,
+    rp.period_start,
+    rp.period_end,
+    mem.id AS member_id,
+    COALESCE(cur.amount_minor, (0)::numeric) AS amount_minor,
+    COALESCE(prev.amount_minor, (0)::numeric) AS previous_amount_minor,
+    (COALESCE(cur.amount_minor, (0)::numeric) - COALESCE(prev.amount_minor, (0)::numeric)) AS delta_minor,
+    COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) AS unconfirmed_amount_minor,
+        CASE
+            WHEN (COALESCE(cur.amount_minor, (0)::numeric) = (0)::numeric) THEN (0)::numeric
+            ELSE round((COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) / cur.amount_minor), 4)
+        END AS unconfirmed_share
+   FROM (((public.v_reporting_period rp
+     CROSS JOIN public.member mem)
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor,
+            sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((t.submitter = mem.id) AND (a.type = 'expense'::text) AND ((t.date >= rp.period_start) AND (t.date <= rp.period_end)))) cur ON (true))
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((t.submitter = mem.id) AND (a.type = 'expense'::text) AND ((t.date >= rp.previous_start) AND (t.date <= rp.previous_end)))) prev ON (true));
+
+
+--
+-- Name: VIEW v_member_spend; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_member_spend IS 'Spend per member (who submitted it) for every reporting period (ADR 0016: any member may ask about the whole household, this is what a "what did I spend" question filters to their own row).';
+
+
+--
+-- Name: v_member_spend_by_month; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_member_spend_by_month WITH (security_invoker='true') AS
+ SELECT mem.id AS member_id,
+    (date_trunc('month'::text, (t.date)::timestamp with time zone))::date AS month,
+    sum(p.amount) AS amount_minor,
+    sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+   FROM (((public.member mem
+     JOIN public.transaction t ON ((t.submitter = mem.id)))
+     JOIN public.posting p ON ((p.transaction_id = t.id)))
+     JOIN public.account a ON ((a.id = p.account_id)))
+  WHERE (a.type = 'expense'::text)
+  GROUP BY mem.id, (date_trunc('month'::text, (t.date)::timestamp with time zone));
+
+
+--
+-- Name: VIEW v_member_spend_by_month; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_member_spend_by_month IS 'One member''s spend across every calendar month they have any.';
+
+
+--
+-- Name: v_merchant_lookup; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_merchant_lookup WITH (security_invoker='true') AS
+ SELECT m.id AS merchant_id,
+    m.name AS merchant_name,
+    m.active,
+    m.default_category_id,
+    cat.name AS default_category_slug,
+    m.name AS match_text,
+    'name'::text AS match_kind
+   FROM (public.merchant m
+     LEFT JOIN public.account cat ON ((cat.id = m.default_category_id)))
+UNION ALL
+ SELECT m.id AS merchant_id,
+    m.name AS merchant_name,
+    m.active,
+    m.default_category_id,
+    cat.name AS default_category_slug,
+    a.alias AS match_text,
+    'alias'::text AS match_kind
+   FROM ((public.merchant m
+     JOIN public.merchant_alias a ON ((a.merchant_id = m.id)))
+     LEFT JOIN public.account cat ON ((cat.id = m.default_category_id)));
+
+
+--
+-- Name: VIEW v_merchant_lookup; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_merchant_lookup IS 'Every string a merchant can be recognised by -- its own name and each alias -- with the category it defaults to. The agent''s find_merchant tool filters this; nothing matches merchants in application code (ADR 0046).';
+
+
+--
+-- Name: v_merchant_spend; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_merchant_spend WITH (security_invoker='true') AS
+ SELECT rp.period,
+    rp.period_start,
+    rp.period_end,
+    m.id AS merchant_id,
+    m.name AS merchant_name,
+    COALESCE(cur.amount_minor, (0)::numeric) AS amount_minor,
+    COALESCE(prev.amount_minor, (0)::numeric) AS previous_amount_minor,
+    (COALESCE(cur.amount_minor, (0)::numeric) - COALESCE(prev.amount_minor, (0)::numeric)) AS delta_minor,
+    COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) AS unconfirmed_amount_minor,
+        CASE
+            WHEN (COALESCE(cur.amount_minor, (0)::numeric) = (0)::numeric) THEN (0)::numeric
+            ELSE round((COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) / cur.amount_minor), 4)
+        END AS unconfirmed_share
+   FROM (((public.v_reporting_period rp
+     CROSS JOIN public.merchant m)
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor,
+            sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((t.merchant_id = m.id) AND (a.type = 'expense'::text) AND ((t.date >= rp.period_start) AND (t.date <= rp.period_end)))) cur ON (true))
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((t.merchant_id = m.id) AND (a.type = 'expense'::text) AND ((t.date >= rp.previous_start) AND (t.date <= rp.previous_end)))) prev ON (true));
+
+
+--
+-- Name: VIEW v_merchant_spend; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_merchant_spend IS 'Spend per merchant for every reporting period.';
+
+
+--
+-- Name: v_merchant_spend_by_month; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_merchant_spend_by_month WITH (security_invoker='true') AS
+ SELECT m.id AS merchant_id,
+    m.name AS merchant_name,
+    (date_trunc('month'::text, (t.date)::timestamp with time zone))::date AS month,
+    sum(p.amount) AS amount_minor,
+    sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+   FROM (((public.merchant m
+     JOIN public.transaction t ON ((t.merchant_id = m.id)))
+     JOIN public.posting p ON ((p.transaction_id = t.id)))
+     JOIN public.account a ON ((a.id = p.account_id)))
+  WHERE (a.type = 'expense'::text)
+  GROUP BY m.id, m.name, (date_trunc('month'::text, (t.date)::timestamp with time zone));
+
+
+--
+-- Name: VIEW v_merchant_spend_by_month; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_merchant_spend_by_month IS 'One merchant''s spend across every calendar month it has any.';
+
+
+--
+-- Name: v_period_reconciliation; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_period_reconciliation WITH (security_invoker='true') AS
+ SELECT period,
+    period_start,
+    period_end,
+    false AS reconciled
+   FROM public.v_reporting_period rp;
+
+
+--
+-- Name: VIEW v_period_reconciliation; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_period_reconciliation IS 'Whether a period is reconciled, per the reporting period vocabulary (ADR 0045). Always false until spec 0007 adds statement reconciliation -- stated, never omitted (R17).';
+
+
+--
 -- Name: v_period_spend; Type: VIEW; Schema: public; Owner: -
 --
 
 CREATE VIEW public.v_period_spend WITH (security_invoker='true') AS
- SELECT (date_trunc('month'::text, (t.date)::timestamp with time zone))::date AS period_start,
-    sum(p.amount) FILTER (WHERE (a.type = 'expense'::text)) AS spend,
-    sum(p.amount) FILTER (WHERE ((a.type = 'expense'::text) AND (t.confirmation_state = 'unconfirmed'::text))) AS unconfirmed_spend,
-    count(*) FILTER (WHERE (a.type = 'expense'::text)) AS transaction_count
-   FROM ((public.transaction t
-     JOIN public.posting p ON ((p.transaction_id = t.id)))
-     JOIN public.account a ON ((a.id = p.account_id)))
-  WHERE (a.type = 'expense'::text)
-  GROUP BY ((date_trunc('month'::text, (t.date)::timestamp with time zone))::date);
+ SELECT rp.period,
+    rp.period_start,
+    rp.period_end,
+    COALESCE(cur.amount_minor, (0)::numeric) AS amount_minor,
+    COALESCE(prev.amount_minor, (0)::numeric) AS previous_amount_minor,
+    (COALESCE(cur.amount_minor, (0)::numeric) - COALESCE(prev.amount_minor, (0)::numeric)) AS delta_minor,
+    COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) AS unconfirmed_amount_minor,
+        CASE
+            WHEN (COALESCE(cur.amount_minor, (0)::numeric) = (0)::numeric) THEN (0)::numeric
+            ELSE round((COALESCE(cur.unconfirmed_amount_minor, (0)::numeric) / cur.amount_minor), 4)
+        END AS unconfirmed_share
+   FROM ((public.v_reporting_period rp
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor,
+            sum(p.amount) FILTER (WHERE (t.confirmation_state = 'unconfirmed'::text)) AS unconfirmed_amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((a.type = 'expense'::text) AND ((t.date >= rp.period_start) AND (t.date <= rp.period_end)))) cur ON (true))
+     LEFT JOIN LATERAL ( SELECT sum(p.amount) AS amount_minor
+           FROM ((public.transaction t
+             JOIN public.posting p ON ((p.transaction_id = t.id)))
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((a.type = 'expense'::text) AND ((t.date >= rp.previous_start) AND (t.date <= rp.previous_end)))) prev ON (true));
 
 
 --
 -- Name: VIEW v_period_spend; Type: COMMENT; Schema: public; Owner: -
 --
 
-COMMENT ON VIEW public.v_period_spend IS 'Spend by month, transfers excluded by construction (a transfer has no expense-type posting), with the unconfirmed share (data-model.md, ADR 0023).';
+COMMENT ON VIEW public.v_period_spend IS 'Household spend for every period this household can be asked about (ADR 0045), transfers excluded by construction, with the previous period and the unconfirmed share as columns (R3, R18).';
 
 
 --
@@ -1284,6 +1846,38 @@ CREATE VIEW public.v_transaction_detail WITH (security_invoker='true') AS
 --
 
 COMMENT ON VIEW public.v_transaction_detail IS 'One transaction with its provenance and where its category came from (data-model.md, spec 0004''s "why this category").';
+
+
+--
+-- Name: v_transaction_search; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.v_transaction_search WITH (security_invoker='true') AS
+ SELECT t.id AS transaction_id,
+    t.date,
+    t.note,
+    m.name AS merchant_name,
+    ( SELECT sum(p.amount) AS sum
+           FROM (public.posting p
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((p.transaction_id = t.id) AND (a.type = 'expense'::text))) AS amount_minor,
+    ( SELECT p.currency
+           FROM (public.posting p
+             JOIN public.account a ON ((a.id = p.account_id)))
+          WHERE ((p.transaction_id = t.id) AND (a.type = 'expense'::text))
+         LIMIT 1) AS currency,
+    public.immutable_unaccent(((((COALESCE(t.note, ''::text) || ' '::text) || COALESCE(m.name, ''::text)) || ' '::text) || COALESCE(( SELECT string_agg(c.raw_text, ' '::text) AS string_agg
+           FROM public.capture c
+          WHERE (c.transaction_id = t.id)), ''::text))) AS searchable_text
+   FROM (public.transaction t
+     LEFT JOIN public.merchant m ON ((m.id = t.merchant_id)));
+
+
+--
+-- Name: VIEW v_transaction_search; Type: COMMENT; Schema: public; Owner: -
+--
+
+COMMENT ON VIEW public.v_transaction_search IS 'One row per transaction with everything free-text about it concatenated (its note, its merchant, every capture message that produced or touched it) and the expense amount it came to -- filter with `searchable_text ilike ...` or `%` similarity, both backed by the trigram indexes (R19).';
 
 
 --
@@ -1390,6 +1984,22 @@ ALTER TABLE ONLY public.conversation
 
 ALTER TABLE ONLY public.correction_request
     ADD CONSTRAINT correction_request_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: digest_run digest_run_member_id_kind_period_start_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.digest_run
+    ADD CONSTRAINT digest_run_member_id_kind_period_start_key UNIQUE (member_id, kind, period_start);
+
+
+--
+-- Name: digest_run digest_run_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.digest_run
+    ADD CONSTRAINT digest_run_pkey PRIMARY KEY (id);
 
 
 --
@@ -1541,6 +2151,13 @@ CREATE INDEX capture_conversation_sequence ON public.capture USING btree (conver
 
 
 --
+-- Name: capture_raw_text_trgm_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX capture_raw_text_trgm_idx ON public.capture USING gin (public.immutable_unaccent(COALESCE(raw_text, ''::text)) public.gin_trgm_ops);
+
+
+--
 -- Name: conversation_one_open_per_kind; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1552,6 +2169,20 @@ CREATE UNIQUE INDEX conversation_one_open_per_kind ON public.conversation USING 
 --
 
 CREATE UNIQUE INDEX merchant_alias_alias_key ON public.merchant_alias USING btree (lower(alias));
+
+
+--
+-- Name: merchant_name_trgm_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX merchant_name_trgm_idx ON public.merchant USING gin (public.immutable_unaccent(name) public.gin_trgm_ops);
+
+
+--
+-- Name: transaction_note_trgm_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX transaction_note_trgm_idx ON public.transaction USING gin (public.immutable_unaccent(COALESCE(note, ''::text)) public.gin_trgm_ops);
 
 
 --
@@ -1800,6 +2431,14 @@ ALTER TABLE ONLY public.correction_request
 
 ALTER TABLE ONLY public.correction_request
     ADD CONSTRAINT correction_request_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES public.transaction(id);
+
+
+--
+-- Name: digest_run digest_run_member_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.digest_run
+    ADD CONSTRAINT digest_run_member_id_fkey FOREIGN KEY (member_id) REFERENCES public.member(id);
 
 
 --
@@ -2081,6 +2720,33 @@ CREATE POLICY correction_request_select_own ON public.correction_request FOR SEL
 
 
 --
+-- Name: digest_run; Type: ROW SECURITY; Schema: public; Owner: -
+--
+
+ALTER TABLE public.digest_run ENABLE ROW LEVEL SECURITY;
+
+--
+-- Name: digest_run digest_run_admin; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY digest_run_admin ON public.digest_run FOR SELECT TO hh_admin USING (true);
+
+
+--
+-- Name: digest_run digest_run_agent; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY digest_run_agent ON public.digest_run TO hh_agent USING (true) WITH CHECK (true);
+
+
+--
+-- Name: digest_run digest_run_select_own; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY digest_run_select_own ON public.digest_run FOR SELECT TO hh_member USING ((member_id = (current_setting('meowhub.actor'::text, true))::bigint));
+
+
+--
 -- Name: file; Type: ROW SECURITY; Schema: public; Owner: -
 --
 
@@ -2178,6 +2844,13 @@ CREATE POLICY member_identity_admin ON public.member_identity TO hh_admin USING 
 --
 
 CREATE POLICY member_select ON public.member FOR SELECT TO hh_member, hh_admin, hh_agent USING (true);
+
+
+--
+-- Name: member member_update_own; Type: POLICY; Schema: public; Owner: -
+--
+
+CREATE POLICY member_update_own ON public.member FOR UPDATE TO hh_member, hh_agent USING ((id = (current_setting('meowhub.actor'::text, true))::bigint)) WITH CHECK ((id = (current_setting('meowhub.actor'::text, true))::bigint));
 
 
 --
@@ -2387,4 +3060,14 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260913144000'),
     ('20260913145000'),
     ('20260913150000'),
-    ('20260913151000');
+    ('20260913151000'),
+    ('20260913160000'),
+    ('20260913161000'),
+    ('20260913162000'),
+    ('20260913163000'),
+    ('20260913164000'),
+    ('20260913165000'),
+    ('20260913166000'),
+    ('20260913167000'),
+    ('20260913170000'),
+    ('20260914100000');

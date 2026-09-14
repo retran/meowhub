@@ -8,10 +8,9 @@
 set -e
 
 REQUIRED_FILES="
-/prompts/capture-text/v1/system.md
-/prompts/capture-text/v1/schema.json
-/prompts/capture-text/v1/examples.json
+/prompts/agent/v1/system.md
 /tools/record_transaction.json
+/tools/find_merchant.json
 "
 
 for f in $REQUIRED_FILES; do

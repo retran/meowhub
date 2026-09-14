@@ -36,6 +36,10 @@ cleanup() {
     delete from member_identity where member_id = ${MEMBER_ID};
     delete from member where id = ${MEMBER_ID};
   " >/dev/null 2>&1 || true
+  # The fixture exists in Authentik too, and a user left behind there
+  # makes the next run of this test fail on a unique username rather
+  # than on anything it is testing.
+  bash scripts/delete-authentik-user.sh deactivation-test >/dev/null 2>&1 || true
   rm -rf "$WORKDIR"
 }
 trap cleanup EXIT

@@ -1,9 +1,9 @@
 ---
 id: 0004
 title: Chat queries and the scheduled digest
-status: approved
+status: done
 created: 2026-09-12
-updated: 2026-09-13
+updated: 2026-09-14
 owner: admins
 supersedes: []
 ---
@@ -63,18 +63,31 @@ weekly digest is read rather than muted.
 - **R2a.** The answerable set is **extended by every later slice that adds a
   view.** A slice that produces a figure for the app without making it askable in
   chat is incomplete: the product is chat-first, so a number reachable only on a
-  screen is a regression. Each such slice adds its questions to the mapping and to
-  the documented list.
+  screen is a regression. Each such slice adds its own read tool and its entry in
+  the documented list (ADR 0046: a capability with no tool is one the household
+  cannot ask for).
 - **R3.** Every answer must state the period it covers and the unconfirmed share
   of the figures in it (ADR 0023).
 - **R4.** Every figure must come from a SQL view, never from arithmetic performed
   in a workflow or by the model.
-- **R5.** The model must translate a question into a choice among known queries
-  and their parameters — never into SQL, and never into a number.
-- **R6.** A question the system cannot map to a known query must be refused
-  plainly, saying what can be asked instead. It must never guess a figure.
-- **R7.** An answer must be a short message, not a table dump, and must respect
-  the member's language.
+- **R4a.** Every figure in a reply must be traceable to the tool result it came
+  from: a number the member is shown must appear in what the database returned
+  for that exchange, and a number that appears in no tool result must not appear
+  in the reply (ADR 0046). This is what replaces a templated answer's guarantee
+  now that the agent writes its own.
+- **R5.** The agent must answer by calling declared tools and reading their
+  results — never by writing SQL, and never by computing a figure itself. It
+  chooses which tools to call; the tool's executor decides under whose authority
+  they run (ADR 0042), and the database decides whether they are allowed
+  (ADR 0046).
+- **R6.** A question no declared tool answers must be refused plainly, saying
+  what can be asked instead. It must never guess a figure, and never answer from
+  the nearest tool that does not actually answer it.
+- **R7.** An answer must be a short message, not a table dump, must be in the
+  member's own language, and must follow `docs/standards/agent-persona.md`. The
+  agent writes it (ADR 0046); it is not selected from a catalogue, so the
+  persona is a property to be tested rather than one guaranteed by the string
+  having been written in advance.
 - **R8.** A member must be able to ask about the whole household's books
   (ADR 0016).
 
@@ -117,9 +130,10 @@ weekly digest is read rather than muted.
 
 ## Scope
 
-**In scope:** the reporting views, the question-to-query mapping and its prompt,
-the answer formatting in both languages, the weekly and monthly digests, their
-schedules and heartbeats, and per-member digest preferences.
+**In scope:** the reporting views, the read tools over them, the agent's
+tool-calling loop and the single system prompt behind it (ADR 0046), the weekly
+and monthly digests with their schedules and heartbeats, and per-member digest
+preferences.
 
 **Out of scope (and why):**
 - Charts and trends over time (spec 0006) — a chart belongs on a screen.
@@ -127,67 +141,70 @@ schedules and heartbeats, and per-member digest preferences.
   to forecast from yet.
 - Project totals (spec 0010).
 - Statement-based reconciliation status beyond the unconfirmed share (spec 0007).
-- Free-form analytical questions. The mapped set in R2 is the contract; widening
-  it is a later slice, not an open-ended promise.
+- Analysis beyond reading the books back. The declared tool set is the contract:
+  the agent may combine tools to answer a question nobody anticipated, but it
+  cannot answer what no tool exposes, and widening the tool set is a later slice
+  rather than an open-ended promise.
 
 ## Acceptance criteria
 
-- [ ] **A1.** Given a month of captured expenses, when a member asks "how much on
+- [x] **A1.** Given a month of captured expenses, when a member asks "how much on
       groceries in October", then the reply states the figure, the period, and the
       unconfirmed share.
-- [ ] **A1a.** Given a month of captured expenses across several categories, when
+- [x] **A1a.** Given a month of captured expenses across several categories, when
       a member asks "what did we spend the most on last month" (or the Russian
       equivalent, «на что мы тратили больше всего в том месяце»), then the reply
       names the ranked categories with each one's total for that period, from the
       same view a "by category" question would use.
-- [ ] **A2.** Given the same data, when the equivalent question is asked in
+- [x] **A2.** Given the same data, when the equivalent question is asked in
       Russian, then the figure is identical and the reply is in Russian.
-- [ ] **A3.** Given a question the system cannot map, when it is asked, then no
+- [x] **A3.** Given a question the system cannot map, when it is asked, then no
       figure is produced and the reply names what can be asked.
-- [ ] **A4.** Given any answer, when its figure is compared with the corresponding
+- [x] **A4.** Given any answer, when its figure is compared with the corresponding
       SQL view queried directly, then they are identical.
-- [ ] **A5.** Given a question about an account's balance, when it is answered,
+- [x] **A5.** Given a question about an account's balance, when it is answered,
       then the figure equals the sum of that account's postings.
-- [ ] **A5a.** Given questions about what the household holds, what it owes, its
+- [x] **A5a.** Given questions about what the household holds, what it owes, its
       net position, and the headroom on a limited account, when each is asked,
       then each is answered from its view — and the headroom answer states the
       limit it is measured against.
-- [ ] **A5b.** Given every view that later slices add, when the documented list of
+- [x] **A5b.** Given every view that later slices add, when the documented list of
       answerable questions is compared with them, then no view produces a figure
       the app shows and the bot cannot be asked for.
-- [ ] **A6.** Given a period containing unconfirmed transactions, when a figure for
+- [x] **A6.** Given a period containing unconfirmed transactions, when a figure for
       it is reported, then the unconfirmed share is stated and is correct.
-- [ ] **A7.** Given the weekly schedule, when it fires, then each member with
+- [x] **A7.** Given the weekly schedule, when it fires, then each member with
       digests enabled receives one, in their own language.
-- [ ] **A8.** Given the weekly digest, when it is generated, then its figures match
+- [x] **A8.** Given the weekly digest, when it is generated, then its figures match
       the figures the same questions would return.
-- [ ] **A9.** Given a member who has turned digests off, when the schedule fires,
+- [x] **A9.** Given a member who has turned digests off, when the schedule fires,
       then they receive nothing.
-- [ ] **A10.** Given a period with no transactions, when the digest is generated,
+- [x] **A10.** Given a period with no transactions, when the digest is generated,
       then it is sent and says so in one line.
-- [ ] **A11.** Given the digest job is prevented from running, when its heartbeat
+- [x] **A11.** Given the digest job is prevented from running, when its heartbeat
       window passes, then an alert reaches the admins.
-- [ ] **A12.** Given any digest, when its text is inspected, then it contains no
+- [x] **A12.** Given any digest, when its text is inspected, then it contains no
       advice, no judgement and no accounting vocabulary.
-- [ ] **A13.** Given a question, when the model is unavailable, then the failure is
+- [x] **A13.** Given a question, when the model is unavailable, then the failure is
       reported plainly and no figure is invented.
-- [ ] **A14.** Given any question, when the model's response is inspected, then it
-      contains a query name and parameters and **no number** — every figure in the
-      answer came from the database.
-- [ ] **A15.** Given a member who is not an admin, when they ask about the whole
+- [x] **A14.** Given any question, when the reply and the tool results that
+      produced it are compared, then **every figure in the reply appears in a
+      tool result, and no figure appears that does not** — the agent transcribes
+      what the database returned and computes nothing (R4a, ADR 0046).
+- [x] **A15.** Given a member who is not an admin, when they ask about the whole
       household's spending, then they receive it.
-- [ ] **A16.** Given the schedules, when Monday 09:00 household time passes, then
+- [x] **A16.** Given the schedules, when Monday 09:00 household time passes, then
       the weekly digest has been sent; and when the 1st passes, the monthly has —
       without waiting for the month to be reconciled, and stating its
       reconciliation status.
-- [ ] **A17.** Given any digest or answer, when it renders, then the previous
+- [x] **A17.** Given any digest or answer, when it renders, then the previous
       period's figure is present for comparison.
-- [ ] **A18.** Given a note stored on a transaction, when a member searches for a
+- [x] **A18.** Given a note stored on a transaction, when a member searches for a
       word in it, then that transaction is returned.
-- [ ] **A19.** Given a transaction categorised by the model, when a member asks
+- [x] **A19.** Given a transaction categorised by the model, when a member asks
       why, then the answer names the model and prompt version; and given one
       categorised from a merchant default, then it says so instead.
-- [ ] **A20.** Given a closed month, when an admin exports it, then the CSV's
+- [x] **A20.** Given a closed month, when an admin exports it, then the CSV's
       totals equal the same period's figures from the views, and it opens in a
       spreadsheet without repair.
 
@@ -222,10 +239,17 @@ These refine the shared baselines in [docs/standards/budgets.md](../../docs/stan
 
 - **Latency:** an answer arrives within a few seconds; a digest is background work
   and nobody waits for it.
-- **Cost:** one model call per question, for mapping only. A digest costs nothing —
-  it is SQL and a template.
-- **Data minimisation:** the model receives the question and the list of available
-  queries, never the ledger (ADR 0029).
+- **Cost:** a handful of model calls per question — one per round of the agent's
+  loop, bounded by the round cap (ADR 0046). A digest costs nothing at all: it is
+  SQL and a template, with no model involved.
+- **Data minimisation:** the agent receives the question, the tool list, and the
+  rows the tools it called returned — the figures it is about to report, and
+  nothing else. It is never handed the ledger to search through, and a tool
+  returns the aggregate that answers the question rather than the transactions
+  behind it, except where the question is itself about specific transactions
+  (search, movement, largest expenses). This is the clause ADR 0046 amends in
+  ADR 0029: the agent sees figures now, because it is the one writing the
+  sentence that contains them.
 
 ## Open questions
 
@@ -234,5 +258,5 @@ must still supply is listed in spec 0001 and spec 0002.
 
 ## Related
 
-- ADRs: 0029, 0004, 0011, 0014, 0017, 0020, 0022, 0023, 0025, 0027
+- ADRs: 0029, 0004, 0011, 0014, 0017, 0020, 0022, 0023, 0025, 0027, 0045, 0046
 - Specs: 0003 (must be done first), 0006, 0007, 0009, 0010

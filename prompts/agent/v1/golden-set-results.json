@@ -1,0 +1,160 @@
+{
+  "prompt": "agent",
+  "version": "v1",
+  "model": "openai/gpt-4o-mini",
+  "total": 16,
+  "passed": 15,
+  "results": [
+    {
+      "id": "capture-bare-en",
+      "text": "coffee 350 with the card",
+      "ok": true,
+      "called": [
+        "find_account",
+        "find_merchant"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "capture-bare-ru",
+      "text": "кофе 350 картой",
+      "ok": true,
+      "called": [
+        "find_merchant"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "capture-needs-question-en",
+      "text": "lunch today",
+      "ok": true,
+      "called": [],
+      "said": "How much was it?",
+      "problems": []
+    },
+    {
+      "id": "capture-needs-question-ru",
+      "text": "обед сегодня",
+      "ok": true,
+      "called": [],
+      "said": "Какую информацию о сегодняшнем обеде вы ищете?",
+      "problems": []
+    },
+    {
+      "id": "correction-en",
+      "text": "that was 35 not 350",
+      "ok": true,
+      "called": [
+        "find_recent_transaction"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "correction-ru",
+      "text": "это было 35, а не 350",
+      "ok": true,
+      "called": [
+        "find_recent_transaction"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "spend-question-en",
+      "text": "how much did we spend this month",
+      "ok": true,
+      "called": [
+        "spend_total"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "spend-question-ru",
+      "text": "сколько мы потратили в этом месяце",
+      "ok": true,
+      "called": [
+        "spend_total"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "ranked-question-en",
+      "text": "what did we spend the most on last month",
+      "ok": false,
+      "called": [
+        "spend_total"
+      ],
+      "said": "",
+      "problems": [
+        "expected one of ['spend_by_category'], called spend_total"
+      ]
+    },
+    {
+      "id": "ranked-question-ru",
+      "text": "на что мы тратили больше всего в том месяце",
+      "ok": true,
+      "called": [
+        "spend_by_category"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "account-question-en",
+      "text": "what is on the current account",
+      "ok": true,
+      "called": [
+        "account_balance"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "account-question-ru",
+      "text": "сколько на текущем счету",
+      "ok": true,
+      "called": [
+        "account_balance"
+      ],
+      "said": "",
+      "problems": []
+    },
+    {
+      "id": "refusal-en",
+      "text": "can we afford a holiday in July",
+      "ok": true,
+      "called": [],
+      "said": "I can't tell you that. I can provide you with the total spend for July last year. Would you like that?",
+      "problems": []
+    },
+    {
+      "id": "refusal-ru",
+      "text": "можем ли мы позволить себе отпуск в июле",
+      "ok": true,
+      "called": [],
+      "said": "Я не могу ответить на этот вопрос. Могу сообщить, сколько было потрачено за последние месяцы или на что-то другое, если это поможет.",
+      "problems": []
+    },
+    {
+      "id": "answers-from-the-tool-en",
+      "text": "how much did we spend this month",
+      "ok": true,
+      "called": [],
+      "said": "This month, you spent 101,00 € in total. Last month, the spending was 88,00 €. Currently, there are 25,00 € in unconfirmed amounts.",
+      "problems": []
+    },
+    {
+      "id": "answers-from-the-tool-ru",
+      "text": "сколько мы потратили в этом месяце",
+      "ok": true,
+      "called": [],
+      "said": "В этом месяце вы потратили 101,00 €, что больше, чем 88,00 € в прошлом месяце. В данный момент 25,00 € из этих расходов ожидают подтверждения.",
+      "problems": []
+    }
+  ]
+}

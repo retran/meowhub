@@ -1,0 +1,28 @@
+{
+  "name": "spend_by_merchant",
+  "version": 1,
+  "purpose": "Spend at a merchant for a period, or every merchant ranked when none is named. From v_merchant_spend only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "period"
+    ],
+    "properties": {
+      "period": {
+        "type": "string",
+        "pattern": "^(this_month|last_month|this_year|last_year|last_7_days|last_30_days|month_of:[0-9]{4}-(0[1-9]|1[0-2]))$",
+        "description": "One of the fixed period names (ADR 0045): this_month, last_month, this_year, last_year, last_7_days, last_30_days, or month_of:YYYY-MM for a named month. Any other value is refused: do not invent a date or a range."
+      },
+      "merchant_name": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    }
+  }
+}

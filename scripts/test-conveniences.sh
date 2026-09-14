@@ -134,11 +134,7 @@ docker compose cp "$TMP" n8n:/tmp/conveniences-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/conveniences-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=convtestentry001 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 rm -f "$TMP"
 
 # A34: a note travels with the capture.
@@ -252,19 +248,19 @@ else
   fail=1
 fi
 
-# A36: recent captures can be listed. The list is read directly and
-# replied inline, nothing is written -- the observable proof is that
-# the request executes cleanly (n8n reports success, not error) against
-# a member who genuinely has several recent captures to list.
+# A36: recent captures can be listed. What the member actually
+# receives is the proof, so this asserts the reply itself -- every
+# outbound message is stored as a capture row, so the reply is
+# readable here -- and that it names a real recent capture of theirs.
 recent_list_txn_count="$(psql_meowhub -t -A -c "select count(*) from transaction where submitter = ${MEMBER_ID};")"
-last_exec_id_before="$(psql_meowhub -t -A -c "" 2>/dev/null; $COMPOSE exec -T postgres psql -U "$POSTGRES_SUPERUSER" -d n8n -t -A -c "select coalesce(max(id), 0) from execution_entity;")"
+newest_txn="$(psql_meowhub -t -A -c "select id from transaction where submitter = ${MEMBER_ID} order by id desc limit 1;")"
 send_message "my recent expenses" "$TELEGRAM_ID" $(( RANDOM + 650000000 ))
 sleep 1
-recent_list_status="$($COMPOSE exec -T postgres psql -U "$POSTGRES_SUPERUSER" -d n8n -t -A -c "select status from execution_entity where id > ${last_exec_id_before} and \"workflowId\" = 'correction0001' order by id desc limit 1;")"
-if [ "$recent_list_status" = "success" ] && [ "$recent_list_txn_count" -ge "1" ]; then
-  echo "PASS: asking for recent captures is handled cleanly, with real captures to list (A36)"
+recent_reply="$(psql_meowhub -t -A -c "select raw_text from capture where member_id = ${MEMBER_ID} and direction = 'outbound' order by id desc limit 1;")"
+if [ "$recent_list_txn_count" -ge "1" ] && echo "$recent_reply" | grep -qF "#${newest_txn}"; then
+  echo "PASS: asking for recent captures returns a short list naming them (A36)"
 else
-  echo "FAILED: expected the recent-list request to succeed with captures on hand, got status='${recent_list_status}' count=${recent_list_txn_count}"
+  echo "FAILED: expected a reply listing capture #${newest_txn}, got '${recent_reply}' (count=${recent_list_txn_count})"
   fail=1
 fi
 

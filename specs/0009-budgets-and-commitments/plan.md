@@ -37,9 +37,9 @@ change is most likely to break.
    `v_account_balance`, plus commitments due inside the horizon, projected per
    account per period. Spec 0010's planned purchases join the same union later,
    so the shape allows for a third source from the start.
-5. **The affordability question** in chat (R15), mapped through spec 0004's
-   question-to-query machinery — the model picks a query and its parameters and
-   never a number (spec 0004, R5).
+5. **The affordability question** in chat (R15) as a read tool the agent calls
+   like any other (ADR 0046) — it reads the forecast view and never computes a
+   figure of its own (spec 0004, R4a/R5).
 6. **`budget`** with rollover, and `v_budget_progress` comparing it to actual
    postings at read time (R1–R3).
 7. **The four alerts**, evaluated by one scheduled sweep, each fired once per
@@ -67,7 +67,7 @@ change is most likely to break.
 | `db/tests/` | The no-postings invariant, budget rollover arithmetic, commitment matching and missed detection, forecast determinism | every later slice that touches a forecast input |
 | `docs/architecture/data-model.md` | Three catalogue changes, listed under *Contracts and data* — the migration and the catalogue entry land in one commit | spec 0010 |
 | `workflows/` | The commitment setup conversation; the affordability question; the scheduled alert sweep and its heartbeat | spec 0010 adds wishes to the same question set |
-| `prompts/` | The commitment-collection prompt and the extension to spec 0004's question-mapping prompt and schema (ADR 0025) | spec 0010 |
+| `prompts/` | Whatever this slice's tools need naming in the agent's one system prompt (ADR 0046) — no prompt of its own (ADR 0025) | spec 0010 |
 | `tools/` | Declared tools for creating, editing and closing commitments and budgets, admin-only (ADR 0039) | spec 0010 |
 | App (spec 0006) | The budget screen and the forecast screen, from the same views the bot reads | — |
 | `docs/guides/talking-to-meow.md` | This slice's questions added to the documented answerable set (spec 0004, R23) | every later slice |

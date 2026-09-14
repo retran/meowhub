@@ -60,18 +60,21 @@ answer to "what can the app and the bot show".
 | `v_member` | Who is in the household, with role and linked channels | Admin screens, palette permissions |
 | `v_account` | The chart, each account with its **current** term | Accounts admin, pickers |
 | `v_account_balance` | Balance, limit and **headroom** per account | Home, overview, borrowing |
-| `v_liability_summary` | What is owed, in total and per instrument | Overview, "сколько должны" |
+| `v_liability_summary` | What is owed, per liability and in total (the row with `account_id` null) | Overview, "сколько должны" |
+| `v_household_position` | What the household holds in total, what it owes in total, and its net position | Overview, "какое у нас положение" |
 | `v_cost_of_credit` | Interest and fees for a period, by instrument and kind | Borrowing, monthly digest |
 | `v_loan_schedule` | The amortisation schedule, derived from the liability's actual balance | Borrowing. A **forecast**, and ADR 0012 means it creates no postings — derived rather than stored is what makes that hold by construction |
 | `v_category` | Expense accounts as categories, with display names per language | Everywhere a category appears |
+| `v_reporting_period` | Every period this household can currently be asked about, with its bounds and its previous period's own bounds (ADR 0045) | Every spend view below joins this once rather than resolving a period per question |
 | `v_period_spend` | Spend for a period, transfers excluded, with the unconfirmed share | Home, digests, every total |
 | `v_category_spend` · `v_category_spend_by_month` | Spend per category, and one category over months | Categories screen |
 | `v_merchant_spend` · `v_merchant_spend_by_month` | The same by merchant | Merchants screen |
 | `v_member_spend` · `v_member_spend_by_month` | The same by member | Members screen |
-| `v_period_reconciliation` | Whether a period is reconciled, per account | Shown wherever a figure is |
+| `v_period_reconciliation` | Whether a period is reconciled — always `false` until spec 0007 gives it a real statement to reconcile against, stated rather than omitted | Shown wherever a figure is |
 | `v_unconfirmed` · `v_unconfirmed_summary` | The queue, its count and oldest age, and **which fields were inferred** rather than stated | Queue, home, the ceiling alert. The screens mark inferred fields, so the marker is part of the contract |
 | `v_transaction_detail` | One transaction with its note, file, **and where its category came from** | Transaction screen, "почему эта категория" |
-| `v_transaction_search` | Transactions matching free text over notes, merchants and captures | Search |
+| `v_transaction_search` | Transactions matching free text over notes, merchants and captures, with the amount each came to | Search |
+| `v_merchant_lookup` | Every string a merchant can be recognised by — its own name and each alias — with the category it defaults to | The agent's `find_merchant`: deciding whether a shop is one we already know (ADR 0046) |
 | `v_statement_import` · `v_statement_line` | What has been imported, and the normalised lines | Statements screen |
 | `v_reconciliation_preview` | What an import would create, match, supersede and flag | Preview before applying |
 | `v_budget_progress` | Spent, remaining, and the proportion of the period elapsed | Budgets |

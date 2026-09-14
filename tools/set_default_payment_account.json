@@ -1,0 +1,16 @@
+{
+  "name": "set_default_payment_account",
+  "version": 1,
+  "purpose": "Set which account a member's captures post against when the message does not say how something was paid (R10). Each member's own to change, so this acts as the asking member and never sets it for someone else.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["account_id"],
+    "properties": {
+      "account_id": { "type": "integer" }
+    }
+  }
+}

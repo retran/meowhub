@@ -6,6 +6,7 @@ date: 2026-09-12
 deciders: owner
 supersedes: [0003]
 superseded-by: []
+amended-by: [0046]
 ---
 
 # ADR 0029 — OpenRouter with a model per task, spend capped, and a residency ladder

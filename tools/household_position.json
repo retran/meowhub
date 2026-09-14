@@ -1,0 +1,13 @@
+{
+  "name": "household_position",
+  "version": 1,
+  "purpose": "What the household holds in total, what it owes in total, and its net position. From v_household_position only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

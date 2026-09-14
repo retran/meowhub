@@ -1,0 +1,16 @@
+{
+  "name": "set_digest_preference",
+  "version": 1,
+  "purpose": "Turn the member's own weekly or monthly digest on or off (R15). Their preference only -- it changes nothing for anybody else in the household, and the column grant is the reason a member can do it at all.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": true,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "weekly": { "type": "boolean" },
+      "monthly": { "type": "boolean" }
+    }
+  }
+}

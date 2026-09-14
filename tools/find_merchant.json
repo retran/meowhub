@@ -1,0 +1,16 @@
+{
+  "name": "find_merchant",
+  "version": 1,
+  "purpose": "Ask the merchant registry whether a name the member typed is one we already know, by its own name or by any alias it has collected. From v_merchant_lookup only. Call this before create_merchant -- deciding a shop is new is a decision, and it should be made after looking.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["text"],
+    "properties": {
+      "text": { "type": "string", "minLength": 1, "description": "The merchant name as the member wrote it. Matched case-insensitively against every known name and alias." }
+    }
+  }
+}

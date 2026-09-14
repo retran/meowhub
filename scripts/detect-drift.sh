@@ -56,6 +56,28 @@ print(json.dumps(d, sort_keys=True))
   fi
 done
 
+# ...and the other direction. Checking only "everything in n8n is
+# committed" leaves a committed workflow that no longer exists in n8n
+# invisible — which is how a deleted workflow quietly stays in the
+# repository, and how a stale export can put one back.
+for committed in workflows/*.json; do
+  [ -e "$committed" ] || continue
+  name="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['name'])" "$committed")"
+  if ! ls "$TMP_DIR"/*.json >/dev/null 2>&1 || ! grep -lFx "  \"name\": \"${name}\"," "$TMP_DIR"/*.json >/dev/null 2>&1; then
+    found=0
+    for f in "$TMP_DIR"/*.json; do
+      [ -e "$f" ] || continue
+      exported="$(python3 -c "import json,sys; print(json.load(open(sys.argv[1]))['name'])" "$f")"
+      [ "$exported" = "$name" ] && found=1 && break
+    done
+    if [ "$found" -eq 0 ]; then
+      echo "DRIFT: ${name} is committed but does not exist in n8n"
+      drift_report="${drift_report}${name}: is committed but does not exist in n8n"$'\n'
+      drifted=1
+    fi
+  fi
+done
+
 if [ "$drifted" -ne 0 ]; then
   echo "drift detected — run 'task export' and commit the result"
   bash scripts/telegram-report.sh "Meow: configuration drift detected —"$'\n'"${drift_report}Run task export and commit the result." || true

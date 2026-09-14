@@ -1,0 +1,26 @@
+{
+  "name": "account_movement",
+  "version": 1,
+  "purpose": "What changed on a named account over a period -- every posting against it. From v_account_movement only, filtered to one account and the period's own bounds.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "account_name",
+      "period"
+    ],
+    "properties": {
+      "account_name": {
+        "type": "string"
+      },
+      "period": {
+        "type": "string",
+        "pattern": "^(this_month|last_month|this_year|last_year|last_7_days|last_30_days|month_of:[0-9]{4}-(0[1-9]|1[0-2]))$",
+        "description": "One of the fixed period names (ADR 0045): this_month, last_month, this_year, last_year, last_7_days, last_30_days, or month_of:YYYY-MM for a named month. Any other value is refused: do not invent a date or a range."
+      }
+    }
+  }
+}

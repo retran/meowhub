@@ -1,0 +1,16 @@
+{
+  "name": "why_category",
+  "version": 1,
+  "purpose": "Why a transaction is categorised as it is -- merchant default, an explicit choice, or the model, naming the prompt version in the model case (R20). From v_transaction_detail only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["transaction_id"],
+    "properties": {
+      "transaction_id": { "type": "integer" }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "find_account",
+  "version": 1,
+  "purpose": "Look up the household's accounts by name, to resolve what a member meant by \"the credit card\" or \"savings\". From v_account_balance only. An account this returns nothing for does not exist: the agent never invents one (ADR 0031), it asks.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "text": { "type": ["string", "null"], "description": "Matched case-insensitively against account names. Null lists every account." },
+      "type": { "type": ["string", "null"], "enum": ["asset", "liability", "income", "expense", "equity", null], "description": "Narrows to one account type when the question implies it." }
+    }
+  }
+}

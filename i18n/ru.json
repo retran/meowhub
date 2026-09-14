@@ -5,5 +5,9 @@
   "restore_verify_success": "Проверка восстановления прошла: схема, данные и файлы совпадают.",
   "restore_verify_failure": "Проверка восстановления провалилась: {{reason}}. Этот бэкап не считается годным.",
   "drift_detected": "Настройки {{component}} отличаются от того, что в репозитории.",
-  "heartbeat_missing": "Задача «{{job}}» не отчиталась вовремя. Тишина — это и есть тревога."
+  "heartbeat_missing": "Задача «{{job}}» не отчиталась вовремя. Тишина — это и есть тревога.",
+  "digest_weekly": "Последние семь дней, {{period_start}} — {{period_end}}: {{total}}. Семь предыдущих: {{previous}}. Больше всего: {{categories}}. Не подтверждено: {{unconfirmed}}. {{reconciliation}}",
+  "digest_monthly": "{{period_start}} — {{period_end}}: {{total}}. Месяцем раньше: {{previous}}. Больше всего: {{categories}}. Не подтверждено: {{unconfirmed}}. {{reconciliation}}",
+  "digest_empty": "{{period_start}} — {{period_end}}: ничего не записано.",
+  "digest_unreconciled": "С банком ещё не сверяли."
 }

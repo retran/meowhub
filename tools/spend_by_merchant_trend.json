@@ -1,0 +1,16 @@
+{
+  "name": "spend_by_merchant_trend",
+  "version": 1,
+  "purpose": "One merchant's spend across every calendar month it has any. From v_merchant_spend_by_month only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["merchant_name"],
+    "properties": {
+      "merchant_name": { "type": "string" }
+    }
+  }
+}

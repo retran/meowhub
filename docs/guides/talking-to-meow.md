@@ -53,11 +53,68 @@ The confirmation carries three quick actions, as buttons or as words:
 - `same again` / `как обычно` — repeats your last capture exactly: same
   amount, category and account, dated today, unconfirmed.
 - `my recent expenses` / `recent captures` — a short list of what you have
-  recorded lately.
+  recorded lately (`list_recent_captures`).
 - `remember: use cash` — keeps a standing preference Meow considers on later
   captures, until an admin removes it. Never a financial fact by itself.
 - `unconfirmed` / `неподтверждённые` — admin only: lists what is still
-  waiting for review; `confirm all` clears the whole list in one reply.
+  waiting for review (`list_unconfirmed`); `confirm all` clears the whole
+  list in one reply.
+
+## What you can ask
+
+This is the contract (spec 0004, R2/R2a/R23): a question outside this list is
+refused plainly, naming what can be asked instead, rather than guessed at.
+Every entry names the tool behind it, because that is what stays current as
+later slices add more — a figure the app can show but the bot cannot answer
+would be a regression.
+
+**Spending:**
+- "how much did we spend this month" — `spend_total`
+- "what did we spend the most on last month" / «на что мы тратили больше
+  всего в том месяце» (ranked, or one category by name) — `spend_by_category`
+- "how has groceries spending changed over time" — `spend_by_category_trend`
+- "how much at Albert Heijn this year" (or every merchant, ranked) —
+  `spend_by_merchant`
+- "how has spending at NS changed over time" — `spend_by_merchant_trend`
+- "what did I spend this month" / "what did everyone spend" —
+  `spend_by_member`
+- "how has my spending changed over time" — `spend_by_member_trend`
+
+**The accounts:**
+- "what's in the ABN AMRO account" / "what's our headroom on the credit
+  card" — `account_balance`
+- "what do we have in total" / "what's our net position" —
+  `household_position`
+- "how much do we owe in total" / "how much on the credit card" —
+  `liability_summary`
+- "what happened on the credit card this month" — `account_movement`
+- "what were the biggest expenses last month" — `largest_expenses`
+- "how many things are waiting for review" — `unconfirmed_summary`
+
+**Finding a specific record:**
+- "find the transaction with 'Маше' in it" / `search transactions for ...` —
+  `search_transactions`
+- "why is this categorised as transport" — `why_category`
+
+**Taking the books with you:**
+- "export last month" — `export_period`. The CSV arrives in the chat as a
+  file: one row per posting, with the account, amount, merchant, note and
+  confirmation state. Any member can ask — everyone can already read the
+  whole ledger, so an export is only the same reading in bulk.
+
+## The digests you are sent without asking
+
+- A **weekly** digest every Monday morning, covering the last seven days.
+- A **monthly** digest on the 1st, covering the month that closed.
+
+Each carries the period's total, the largest categories, the previous
+period's figure, how much of it is still unconfirmed, and whether the period
+has been checked against the bank. Nothing else — no advice and no comment.
+A period with nothing in it is still sent, in one line, so silence always
+means something is broken rather than that nothing was spent.
+
+Tell Meow to stop sending you either one and he will; the preference is
+yours alone and does not affect anybody else in the household.
 
 ## What Meow will not do
 

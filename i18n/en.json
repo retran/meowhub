@@ -5,5 +5,9 @@
   "restore_verify_success": "Restore verification passed: schema, data and files match.",
   "restore_verify_failure": "Restore verification failed: {{reason}}. This backup is not counted as good.",
   "drift_detected": "{{component}}'s configuration differs from what is committed.",
-  "heartbeat_missing": "The \"{{job}}\" job did not report in time. Silence is the alarm."
+  "heartbeat_missing": "The \"{{job}}\" job did not report in time. Silence is the alarm.",
+  "digest_weekly": "Last seven days, {{period_start}} to {{period_end}}: {{total}}. The seven before: {{previous}}. Largest: {{categories}}. Still unconfirmed: {{unconfirmed}}. {{reconciliation}}",
+  "digest_monthly": "{{period_start}} to {{period_end}}: {{total}}. The month before: {{previous}}. Largest: {{categories}}. Still unconfirmed: {{unconfirmed}}. {{reconciliation}}",
+  "digest_empty": "{{period_start}} to {{period_end}}: nothing was written down.",
+  "digest_unreconciled": "Not yet checked against the bank."
 }

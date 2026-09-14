@@ -114,11 +114,7 @@ docker compose cp "$TMP" n8n:/tmp/capture-text-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n import:workflow --input=/tmp/capture-text-test-entry.json >/dev/null
 $COMPOSE exec -T n8n n8n publish:workflow --id=capturetestentry1 >/dev/null
 $COMPOSE restart n8n >/dev/null
-for i in $(seq 1 20); do
-  h="$($COMPOSE ps n8n --format '{{.Health}}' 2>/dev/null)"
-  [ "$h" = "healthy" ] && break
-  sleep 2
-done
+bash scripts/wait-for-n8n.sh
 rm -f "$TMP"
 
 send_message "coffee 350" $(( RANDOM + 100000000 ))

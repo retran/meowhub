@@ -7,3 +7,10 @@
 # enough that the quiet period is what actually paces it, not the cron
 # schedule.
 */15 * * * * cd /workspace && bash scripts/auto-confirm-quiet.sh >> /proc/1/fd/1 2>> /proc/1/fd/2
+
+# The digest tick (spec 0004 T11, R9/R10/R17), hourly. The hour is not
+# the schedule: SQL decides who is due at Monday 09:00 and on the 1st in
+# the household's own timezone, and a tick that finds nobody does
+# nothing. Hourly is only how often the question gets asked, which is
+# what makes a missed hour heal itself.
+0 * * * * cd /workspace && bash scripts/digest-tick.sh >> /proc/1/fd/1 2>> /proc/1/fd/2

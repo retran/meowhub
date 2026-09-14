@@ -1,0 +1,17 @@
+{
+  "name": "find_recent_transaction",
+  "version": 1,
+  "purpose": "The household's most recent transactions, newest first, for resolving what \"it\" or \"the last one\" refers to. From v_transaction_detail only. Reclassification reaches any member's transaction (R15a); a financial correction to someone else's is refused at the database, not here.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "mine_only": { "type": ["boolean", "null"], "description": "True to restrict to the acting member's own captures, for \"my last one\"." },
+      "unconfirmed_only": { "type": ["boolean", "null"], "description": "True when the question is about what is still waiting for review." },
+      "limit": { "type": "integer", "minimum": 1, "maximum": 20, "default": 5 }
+    }
+  }
+}

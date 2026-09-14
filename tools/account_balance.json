@@ -1,0 +1,16 @@
+{
+  "name": "account_balance",
+  "version": 1,
+  "purpose": "What a named account holds, its limit and its headroom (R2's account-state questions). From v_account_balance only.",
+  "shape": "acts_as",
+  "permission": "hh_member",
+  "mutating": false,
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["account_name"],
+    "properties": {
+      "account_name": { "type": "string" }
+    }
+  }
+}

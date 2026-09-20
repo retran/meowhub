@@ -3,6 +3,8 @@ description: Verify an implementation against its spec and acceptance criteria
 argument-hint: <NNNN — spec number>
 ---
 
+Load the `technical-english` skill first: the review you write is prose, and so is anything you fix in the spec.
+
 Verify the implementation of spec $ARGUMENTS.
 
 1. Read `spec.md`, `plan.md` and `tasks.md`.

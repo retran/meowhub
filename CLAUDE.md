@@ -6,6 +6,15 @@ interface. See [docs/product/vision.md](docs/product/vision.md).
 **All content in this repository is written in English** — specs, docs, code,
 comments, commit messages. No exceptions.
 
+**Load the `technical-english` skill before you write anything**, in every
+conversation, and keep it loaded. It governs every piece of prose produced
+here: specs, plans, ADRs, guides, code comments, commit messages, pull request
+bodies, and replies in chat. This doesn't depend on the task looking like a
+writing task — a commit message is prose, and so is a chat reply. The one
+exception is what the bot says to a member, which follows
+[docs/standards/agent-persona.md](docs/standards/agent-persona.md): the persona
+is the product's voice, the skill is the repository's.
+
 ## How we work: spec-driven development
 
 Every change flows through four artifacts. Code is the last step, not the first.
@@ -127,6 +136,7 @@ docs/architecture/          overview, the data model and view catalogue, ADRs
 docs/risks.md               delivery risks, in one place
 docs/standards/             process and engineering conventions
 .claude/commands/           process slash commands
+.claude/skills/             skills the commands load, technical-english first
 ```
 
 ## Stack

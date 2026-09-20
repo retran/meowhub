@@ -8,16 +8,18 @@ owner: <who is accountable>
 supersedes: []         # ids of specs this one replaces
 ---
 
-# NNNN — <name>
+# NNNN - <name>
 
 ## Problem
 
-What hurts today. For whom, in which situation. No solution here — only the pain.
+What hurts today, for whom, and in which situation. Name the person and the
+moment, and give the reason the pain exists. Describe no solution here, only the
+pain.
 
 ## Why
 
-The outcome we want, and how we will know it improved (a metric or an
-observable sign).
+The outcome we want, and how we will know it improved. Name a metric or an
+observable sign somebody could check without asking you.
 
 ## Users and scenarios
 
@@ -25,7 +27,9 @@ observable sign).
 
 ## Requirements
 
-Numbered, verifiable, phrased as behaviour. No implementation.
+Number every requirement, phrase it as behaviour a test can check, and keep the
+implementation out of it. Where a requirement follows from a constraint or an
+ADR, say so in the same sentence.
 
 - **R1.** The system must ...
 - **R2.** When <condition>, the system must ...
@@ -40,7 +44,8 @@ Numbered, verifiable, phrased as behaviour. No implementation.
 
 ## Acceptance criteria
 
-Conditions under which the feature is done. Phrased so a test follows directly.
+The conditions under which the feature is done, phrased so that an implementer
+can write the test straight from the sentence.
 
 - [ ] **A1.** Given <state>, when <action>, then <result>.
 - [ ] **A2.** ...
@@ -53,8 +58,9 @@ Conditions under which the feature is done. Phrased so a test follows directly.
 
 ## Ergonomic cost
 
-See [docs/standards/ergonomics.md](../../docs/standards/ergonomics.md). Answer all
-four; "none" is a valid answer that has to be earned.
+Answer all four questions below; see
+[docs/standards/ergonomics.md](../../docs/standards/ergonomics.md). "None" is a
+valid answer, and you earn it by saying why nobody does more work.
 
 - **Who does more work after this ships, and how much?**
 - **What queue or obligation does it create, and what drains it?**
@@ -63,22 +69,24 @@ four; "none" is a valid answer that has to be earned.
 
 ## Non-functional requirements
 
-Only what genuinely matters for this feature (latency, privacy, cost,
-accessibility, compatibility). An empty section beats an invented one.
+Write down only what genuinely matters for this feature - latency, privacy, cost,
+accessibility, compatibility - with the number or the limit that makes it
+checkable. If nothing here matters for this feature, leave the section empty; an
+invented limit is one nobody will check.
 
 ## Open questions
 
-**What a question blocks** — not whether it is "important". A spec can be planned
-and built while `deploy` and `data` questions are still open; only a `design`
-question stops the work.
+Classify each question by what it blocks, not by how important it feels. A spec
+can be planned and built while `deploy` and `data` questions are still open, and
+only a `design` question stops the work.
 
 | Value | Meaning |
 |---|---|
 | `design` | The schema or the behaviour cannot be settled without it. **Blocks the plan.** |
-| `build` | Needed during implementation — a real file, a credential, a verified assumption. Blocks a task, not the plan. |
+| `build` | Needed during implementation - a real file, a credential, a verified assumption. Blocks a task, not the plan. |
 | `deploy` | Only needed to go live or to operate: a provider, a domain, a purchase, a physical arrangement. |
 | `data` | A household fact needed to *use* the system, not to build it. Development runs on the seeded synthetic household. |
-| `nothing` | A preference with a sensible default. Recorded so it is a choice rather than an accident. |
+| `nothing` | A preference with a sensible default. Recorded so that it is a choice rather than an accident. |
 
 | # | Question | Blocks | Status |
 |---|---|---|---|

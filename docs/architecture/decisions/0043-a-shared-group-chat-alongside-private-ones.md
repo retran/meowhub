@@ -9,100 +9,98 @@ superseded-by: []
 amends: [0027]
 ---
 
-# ADR 0043 — A member may message the bot privately or from one shared household group
+# ADR 0043 - A member may message the bot privately or from one shared household group
 
 ## Context
 
-ADR 0027 chose private 1:1 chats only, for a stated reason: attribution is
-unambiguous and a correction is not a public event. That reasoning assumed a
-group chat would force every member into visibility they had not chosen.
+ADR 0027 chose private one-to-one chats only, because attribution is then
+unambiguous and a correction isn't a public event. That reasoning assumed a
+group chat would force every member into visibility they hadn't chosen.
 
-The household now wants a shared group chat as well as private ones — a
-household is one unit, and a member is free to capture in front of the others or
-alone. This amends the one clause of ADR 0027 that said otherwise; nothing else
-in that decision changes: Telegram is still the platform, the bot is still the
-only interface object, and the numeric user id is still the member's identity.
+The household now wants a shared group chat as well as private ones, because a
+household is one unit and a member can capture in front of the others or alone.
+This ADR amends the single clause of ADR 0027 that said otherwise, and changes
+nothing else in it: Telegram is still the platform, the bot is still the only
+interface object, and the numeric user id is still the member's identity.
 
-Nothing about attribution actually required the private-only restriction in the
-first place. Telegram's own `message.from` names the sender on every message,
-in a group exactly as in a private chat — a fact the normalisation step already
-reads and always has (`channel_id: String(msg.from.id)`, never the chat). The
-restriction was about who *sees the reply*, not who is credited for the message.
+Attribution never needed the private-only restriction. Telegram's own
+`message.from` names the sender on every message, in a group the same as in a
+private chat, and the normalisation step has always read exactly that
+(`channel_id: String(msg.from.id)`, never the chat). The restriction decided who
+sees the reply, not who gets credited for the message.
 
 ## Decision
 
-**A member may message the bot from their own private chat, from one shared
-household group, or both — freely, per message.** The bot replies in whichever
-the message came from: a private capture gets a private reply, a group capture
-gets a reply in the group, visible to whoever is in it.
+A member can message the bot from their own private chat, from one shared
+household group, or from both, choosing freely per message. The bot replies
+wherever the message came from, so a private capture gets a private reply and a
+group capture gets a reply in the group, visible to whoever is in it.
 
-**A shared chat means shared context, not merely shared visibility.** A group
-is one ongoing conversation the agent follows, the way a person sitting in it
-would — not several members' private threads that happen to render in the same
-window. Concretely:
+A shared chat also means shared context. The agent follows a group as one
+ongoing conversation, the way a person sitting in it would, instead of treating
+it as several private threads that happen to render in the same window. In
+detail:
 
-- **Attribution stays per-member and is unaffected structurally.**
-  `member_channel` is keyed on the Telegram user id, never on a chat id
-  (ADR 0030) — a transaction still has exactly one submitter (R6), and that
-  does not change because the message arrived in a group.
-- **`capture` records which chat a message came from** (`chat_id`, the
-  Telegram chat, distinct from the sender). This is what makes shared context
-  possible: composing a reply to an ambiguous or follow-on message considers
-  recent messages **from that whole chat**, across every member in it, not
-  only the sending member's own prior messages. "actually I paid for that
-  one" from a different member than who sent the original capture must be
-  understood as referring to it — the agent is reading one conversation, the
-  same as a person in the room would.
-- **`conversation` stays keyed on `member_id`**, because a pending question or
-  a setup step still resolves to one specific person's answer and one
-  specific person's bookkeeping — but nothing about that key stops the
-  workflow querying `capture` by `chat_id` for situational context when
-  composing what to ask or how to interpret a reply. Per-member state and
-  shared awareness are not the same axis, and this is deliberately both: who
-  a capture belongs to is one question, what the agent already knows from the
-  room is another.
-- **A reply's privacy is the sender's own choice, made by where they send the
-  message** — not a property of the deployment. A member who wants their
-  captures unseen by the rest of the household uses their private chat; a
-  member happy to capture in front of everyone, with the agent following the
-  whole exchange, uses the group. Both work, and neither is enforced.
-- **The bot's group privacy mode is disabled** (BotFather's `/setprivacy`),
-  so it receives every message sent in the group, not only ones that
-  `@mention` it — otherwise "coffee 350" typed in the group would silently
-  reach nobody, the worst version of this failure.
-- **One shared group**, not several. Nothing here supports the household
-  splitting into multiple group chats; that is a materially different feature
-  (per-group scoping, per-group permissions) that nobody has asked for.
+- Attribution stays per member, and its structure doesn't change.
+  `member_channel` is keyed on the Telegram user id and never on a chat id
+  (ADR 0030), so a transaction still has exactly one submitter (R6) whether or
+  not the message arrived in a group.
+- `capture` records which chat a message came from, as `chat_id`, the Telegram
+  chat rather than the sender. Recording it is what makes shared context
+  possible: when the agent composes a reply to an ambiguous or follow-on
+  message, it considers recent messages from that whole chat, across every
+  member in it, and not only the sending member's own earlier messages. When one
+  member types "actually I paid for that one" about a capture another member
+  sent, the agent has to understand the reference, because it's reading one
+  conversation the way a person in the room would.
+- `conversation` stays keyed on `member_id`, because a pending question or a
+  setup step resolves to one person's answer and one person's bookkeeping. That
+  key still lets the workflow query `capture` by `chat_id` for context when it
+  decides what to ask or how to read a reply. Per-member state and shared
+  awareness answer two different questions: who a capture belongs to, and what
+  the agent already knows from the room.
+- Each sender chooses how private a reply is by choosing where to send the
+  message, so privacy isn't a property of the deployment. A member who wants
+  their captures unseen by the rest of the household uses their private chat,
+  and a member happy to capture in front of everyone, with the agent following
+  the whole exchange, uses the group. Both work, and we enforce neither.
+- The bot's group privacy mode is disabled through BotFather's `/setprivacy`,
+  so it receives every message sent in the group and not only the ones that
+  `@mention` it. Leaving it on would make "coffee 350" typed in the group reach
+  nobody at all, which is the worst version of this failure.
+- The household has one shared group. Splitting into several group chats would
+  be a different feature, with per-group scoping and per-group permissions, and
+  nobody has asked for it.
 
 ## Alternatives
 
 | Option | Why rejected |
 |---|---|
-| Keep ADR 0027 as written, private only | What the household is now asking to move past — a group chat is a real, wanted mode, not a hypothetical |
-| Group chat only, retire private chats | Removes a mode some members may still want (capturing unseen by the rest of the household); nothing requires choosing one over the other once attribution is already chat-independent |
-| A separate bot registration for the group | Two bots means two tokens, two webhooks, and two places idempotency and dedup (ADR 0033) have to hold independently for no benefit — the existing bot already receives from any chat it is a member of |
-| Redact or summarise replies differently in the group (e.g. hide the amount) | Solves a problem nobody described; the household chose the group precisely to see each other's captures there. A member wanting privacy already has the private-chat option |
-| Treat the group as N isolated per-member threads that happen to share a window | The simpler implementation, and it is not what was asked for: a shared chat means shared context — one member correcting or continuing another's message must work, the way it would if a person were reading the whole conversation |
+| Keep ADR 0027 as written, private only | The household is asking to move past it, because a group chat is a real, wanted mode |
+| Group chat only, retire private chats | Removes a mode some members still want, capturing unseen by the rest of the household, and attribution is already chat-independent, so we don't have to choose |
+| A separate bot registration for the group | Two bots cost two tokens, two webhooks, and two places where idempotency and deduplication (ADR 0033) have to hold, and buy nothing, because the existing bot already receives from any chat it belongs to |
+| Redact or summarise replies differently in the group, for example by hiding the amount | Solves a problem nobody described, since the household chose the group in order to see each other's captures there, and a member who wants privacy already has the private chat |
+| Treat the group as several isolated per-member threads that share a window | The simpler implementation, and not what the household asked for: a shared chat means shared context, so one member correcting or continuing another's message has to work as it would for a person reading the whole conversation |
 
 ## Consequences
 
-**Good:**
-- No schema or attribution change was needed — the design was already
-  chat-independent where it mattered, so this is a genuinely small change: a bot
-  setting and confirming the reply path stays keyed on the incoming chat id
-  (which the "Reply" step already used).
-- A member is not forced into one mode; the household's own social norms decide
-  who captures where, not a deployment flag.
+Good:
+- Neither the schema nor attribution changed, because the design was already
+  chat-independent where it mattered, so the whole change is a bot setting plus
+  confirming that the reply path stays keyed on the incoming chat id, which the
+  Reply step already used.
+- No member is forced into one mode, so the household's own social norms decide
+  who captures where instead of a deployment flag.
 
-**Bad, and the price we accept:**
-- Two live delivery surfaces (private chats, the group) to keep working
-  correctly, tested, and idempotent (ADR 0033) rather than one.
-- A confirmation, a correction, or an unparsed capture's question is now
-  sometimes genuinely public within the household when sent from the group —
-  accepted deliberately, per member, per message; not a leak, since it was the
-  sender's own choice of chat.
+Bad, and the price we accept:
+- We now keep two delivery surfaces working, tested, and idempotent
+  (ADR 0033): the private chats and the group.
+- A confirmation, a correction, or an unparsed capture's question is sometimes
+  public within the household when it's sent from the group. We accept that per
+  member and per message, and it isn't a leak, because the sender chose the
+  chat.
 
-**What becomes harder to change later:** nothing structural. Adding a second
-shared group, if ever asked for, would need real design (which group a
-member's message belongs to, per-group settings); this ADR deliberately does
-not build toward that.
+Nothing structural becomes harder to change later. Adding a second shared group,
+if anyone ever asks, would need real design covering which group a member's
+message belongs to and what each group's settings are, and this ADR deliberately
+doesn't build toward it.

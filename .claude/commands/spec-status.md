@@ -2,6 +2,8 @@
 description: Overview of all specs, their status and progress
 ---
 
+Load the `technical-english` skill first: the overview you write is prose.
+
 Report the state of all specs.
 
 1. Walk `specs/*/` (excluding `_templates`), read the `spec.md` front matter

@@ -8,76 +8,82 @@ supersedes: []
 superseded-by: [0030]
 ---
 
-# ADR 0005 — Household membership via a Telegram allow-list
+# ADR 0005 - Household membership via a Telegram allow-list
 
 > **Superseded by [ADR 0030](./0030-identity-is-ours-telegram-is-a-linked-channel.md).**
-> A member is now an account of ours with Telegram linked to it by an admin,
-> rather than a row keyed by a Telegram id. The reasoning below stands as written;
-> the successor carries the current decision.
+> A member is now an account of ours, with Telegram linked to it by an admin,
+> instead of a row keyed by a Telegram id. The reasoning below stands as
+> written, and the successor carries the current decision.
 
 ## Context
 
 Three people use the bot: two parents and a daughter. They share one ledger, and
-every entry has to record who submitted it. The bot is reachable by anyone who
-finds it on Telegram, so it needs to reject strangers — a public bot with an open
-household ledger behind it is not acceptable.
+every entry has to record who submitted it. Anyone who finds the bot on Telegram
+can message it, so the bot has to turn strangers away, because a public bot with
+an open household ledger behind it is not acceptable.
 
-There is no requirement for accounts, passwords or sign-up: the household is a
-fixed, tiny, known set of people.
+The household needs no accounts, passwords or sign-up, since it is a fixed, tiny
+and known set of people.
 
 ## Decision
 
-Telegram is the conversational platform (ADR 0027); this decides who may use it.
+Telegram is the conversational platform (ADR 0027), and this ADR decides who can
+use it.
 
-A member is a row in the `members` table keyed by **Telegram user id**. Messages
-from any id not in that table are refused with a neutral reply and logged; they
-never reach the agent or the ledger.
+A member is a row in the `members` table keyed by Telegram user id. The bot
+refuses a message from any id outside that table with a neutral reply and logs
+it, and such a message never reaches the agent or the ledger. Six rules follow
+from that:
 
-- Membership is managed by an admin, through a bot command or a direct database
-  row — not by self-service sign-up.
-- The Telegram user id is the identity; the display name is cached for
-  convenience only, because Telegram usernames change.
-- Every ledger entry carries the submitting member. Attribution is not optional
-  and cannot be null.
-- All members see the whole shared ledger. Who may *change* what is recorded is
-  decided in ADR 0016: admins only, with category and project attribution
-  exempted as classification (ADR 0021).
-- **A member's role is either `admin` or `member`, and admin is deliberately held
-  by two people** — both parents. The daughter is a `member`. Only an `admin`
-  manages membership, edits recorded transactions (ADR 0016) and runs destructive
-  operations such as an import reversal.
-- **No capability in this system belongs to one individual.** Two admins is the
-  household's answer to a single point of human failure, and it is why secret
-  custody (ADR 0024) is held by both rather than by one.
+- An admin manages membership, through a bot command or a direct database row,
+  and nobody signs themselves up.
+- The Telegram user id is the identity, and we cache the display name only for
+  convenience, because Telegram usernames change.
+- Every ledger entry carries the member who submitted it, in a column that
+  cannot be null.
+- All members see the whole shared ledger. ADR 0016 decides who can *change*
+  what is recorded: admins only, except for category and project attribution,
+  which counts as classifying rather than editing (ADR 0021).
+- A member's role is either `admin` or `member`, and both parents hold admin
+  while the daughter is a `member`. Only an `admin` manages membership, edits
+  recorded transactions (ADR 0016) and runs destructive operations such as
+  reversing an import.
+- **Two people hold every power in this system.** Two admins are the household's
+  answer to a single point of human failure, and the same reasoning puts secret
+  custody (ADR 0024) in both parents' hands.
 
-This ADR covers the household's use of the bot. Access to the administrative
-interfaces (n8n itself, dashboards) is a different problem, decided in ADR 0032.
+This ADR covers how the household uses the bot. ADR 0032 decides who reaches the
+administrative interfaces, n8n itself and the dashboards, which is a different
+problem.
 
 ## Alternatives
 
 | Option | Why rejected |
 |---|---|
-| Shared Telegram group, one chat for everyone | Attribution would rest on who happened to send the message in a busy chat, and private corrections would be public. Private chats per member are cleaner and Telegram gives the identity for free |
+| Shared Telegram group, one chat for everyone | Attribution would rest on who happened to send the message in a busy chat, and private corrections would be public. Private chats per member are cleaner, and Telegram gives us the identity for free |
 | A real identity system (accounts, passwords, OIDC) for bot users | Enormous overhead for three known people who already have Telegram identities |
-| No allow-list, just don't publish the bot name | Bot tokens and usernames leak; an open ledger is too high a price for saving one table |
-| Per-member private ledgers | Contradicts the product goal: the point is one household picture |
+| No allow-list, and not publishing the bot name | Bot tokens and usernames leak, and an open ledger is too high a price for saving one table |
+| Per-member private ledgers | Contradicts the product goal, which is one household picture |
 
 ## Consequences
 
-**Good:**
+We gain three things:
+
 - Access control is one table and one check at the top of every workflow.
-- Attribution comes free from the Telegram message.
-- No passwords, no sign-up flow, nothing to reset.
+- The Telegram message tells us who submitted the entry, at no extra cost.
+- No passwords, no sign-up flow and nothing to reset.
 
-**Bad, and the price we accept:**
-- Onboarding a person is a manual act by an admin. At three members, that is
-  correct.
-- Identity is only as strong as their Telegram account; if a device is
-  compromised, the ledger is readable. Accepted for household bookkeeping.
-- Telegram is a hard dependency for identity as well as for transport, which
-  makes replacing the interface later more than a transport change.
+We accept three costs in return:
 
-**What becomes harder to change later:**
-- Adding per-member visibility rules after everyone is used to seeing everything
-  would be a product change, not just a technical one. The schema keeps the door
-  open by recording attribution on every transaction from the start.
+- An admin has to onboard each person by hand, which is the right answer at
+  three members.
+- An identity is only as strong as the member's Telegram account, so a
+  compromised device makes the ledger readable. We accept that for household
+  bookkeeping.
+- Telegram becomes a hard dependency for identity as well as for transport, so
+  replacing the interface later means more than changing transport.
+
+Per-member visibility rules are what get harder to add later, because once
+everyone is used to seeing everything, restricting it is a product change and
+not only a technical one. The schema keeps the door open by recording who
+submitted every transaction from the start.

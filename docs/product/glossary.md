@@ -1,18 +1,19 @@
 # Glossary
 
-Domain terms. One concept, one word — in specs, workflows, database columns and
-bot replies alike. If a synonym shows up in discussion, either it is recorded
-here as "do not use", or it replaces the existing term everywhere.
+This page lists the domain terms meowhub uses, with one concept to one word, so
+that a spec, a workflow, a database column, and a bot reply all call the same
+thing by the same name. When a synonym turns up in discussion we either record it
+here as "do not use", or we replace the existing term everywhere.
 
-The accounting half of this vocabulary is for the system, not for the household:
-by vision principle 10, no member ever reads the words *posting*, *debit* or
-*chart of accounts* in a bot reply.
+The accounting half of this vocabulary is for the system and not for the
+household: by vision principle 10, no member ever reads the words *posting*,
+*debit*, or *chart of accounts* in a bot reply.
 
 ## People and installation
 
 | Term | Meaning | Not to be confused with |
 |---|---|---|
-| Household | The single group of people one installation serves. Three members today | Account (here: financial), tenant — neither exists |
+| Household | The single group of people one installation serves. Three members today | Account (here: financial), tenant - meowhub has neither |
 | Member | One person in the household, identified by their Telegram user id | User (too vague), admin (a role some members hold) |
 | Owner | A member with administrative rights. Both parents are admins | Member (any of the three) |
 
@@ -20,29 +21,29 @@ by vision principle 10, no member ever reads the words *posting*, *debit* or
 
 | Term | Meaning | Not to be confused with |
 |---|---|---|
-| Ledger | The complete set of transactions for the household. One shared ledger | Report, forecast — both are views over it |
+| Ledger | The complete set of transactions for the household. One shared ledger | Report, forecast - both are views over it |
 | Account | A named place money sits or is owed: a bank account, cash, a credit card, a loan, or a category of income or expense | Member (a person), login account (ADR 0032) |
 | Chart of accounts | The full structure of accounts, versioned in migrations | Category (an expense account, informally) |
 | Transaction | One economic event, holding two or more postings that sum to zero | Expense (one kind of transaction), statement line (the bank's record of it) |
-| Posting | One side of a transaction: an account and a signed amount | Transaction (the whole event), entry — do not use |
-| Expense | A transaction that increases an expense account. What a member means by "a purchase" | Payment (may be a transfer), transaction (broader) |
-| Transfer | A transaction moving value between the household's own accounts, including paying a card bill or repaying loan principal. Never counted as spending | Expense — this is the distinction that keeps totals honest |
+| Posting | One side of a transaction: an account and a signed amount | Transaction (the whole event), entry - do not use |
+| Expense | A transaction that increases an expense account. What a member means by "a purchase" | Payment (which might be a transfer), transaction (broader) |
+| Transfer | A transaction moving value between the household's own accounts, including paying a card bill or repaying loan principal. Never counted as spending | Expense - keeping the two apart is what keeps the totals honest |
 | Balance | An account's position, derived by summing its postings. Never stored | Available funds (balance plus unused overdraft) |
-| Overdraft limit | How far below zero a debit account may legitimately go | Credit limit (the card's equivalent) |
+| Overdraft limit | How far below zero a debit account can legitimately go | Credit limit (the card's equivalent) |
 | Opening balance | The one transaction that starts an account from its real-world position | Correction |
-| Cash basis | We record interest, fees and income when charged or received, not as they accrue | Accrual accounting — out of scope |
+| Cash basis | We record interest, fees and income when charged or received, not as they accrue | Accrual accounting - out of scope |
 
 ## Capture
 
 | Term | Meaning | Not to be confused with |
 |---|---|---|
 | Capture | The act of submitting something to the bot in any form | Transaction (what it becomes) |
-| Unparsed capture | A received message the agent could not turn into a balanced transaction; stored and asked back | Error — a normal state, not a failure |
-| Merchant | Where the money went, as a plain name, held in a registry that learns | Payee, vendor — do not use |
-| Merchant alias | A raw observed string — typed text or a statement descriptor — mapped onto one merchant | Merchant (the canonical name) |
-| Category | The expense account a transaction is classified into | Tag — free tagging does not exist |
-| Slug | The stable, language-neutral identifier of a domain concept — a category, an account type. Display names are translations of it | Display name (what a member reads), label |
-| Classification | The parts of a transaction any member may change: category and project. Distinguished from a financial fact | Correction (a financial fact: amount, date, account, existence) |
+| Unparsed capture | A received message the agent could not turn into a balanced transaction; stored and asked back | Error - this is a normal state and not a failure |
+| Merchant | Where the money went, as a plain name, held in a registry that learns | Payee, vendor - do not use |
+| Merchant alias | A raw observed string, either typed text or a statement descriptor, mapped onto one merchant | Merchant (the canonical name) |
+| Category | The expense account a transaction is classified into | Tag - free tagging does not exist |
+| Slug | The stable, language-neutral identifier of a domain concept such as a category or an account type. A display name is a translation of the slug | Display name (what a member reads), label |
+| Classification | The parts of a transaction any member can change: the category and the project, as opposed to a financial fact | Correction (a financial fact: amount, date, account, existence) |
 
 ## Statements
 
@@ -50,22 +51,22 @@ by vision principle 10, no member ever reads the words *posting*, *debit* or
 |---|---|---|
 | Statement | A PDF export from a bank or card issuer (ABN AMRO, ING, ICS) covering a period | Ledger (ours), report (generated by us) |
 | Statement line | One row parsed from a statement, before it is matched to anything | Posting (ours), transaction |
-| Reconciliation | Matching statement lines against existing transactions, creating what is missing and flagging what conflicts | Import (merely reading the file) |
+| Reconciliation | Matching statement lines against existing transactions, creating what is missing and flagging what conflicts | Import (only reading the file) |
 | Duplicate | A statement line and a transaction judged to be the same real-world event | Correction (the same transaction, edited) |
 | Authoritative line | A statement line from a structured export, parsed deterministically | Provisional line |
-| Provisional line | A statement line a model read from a PDF; superseded, not duplicated, by a later structured import | Authoritative line, unparsed capture |
+| Provisional line | A statement line a model read from a PDF. A later structured import supersedes it instead of duplicating it | Authoritative line, unparsed capture |
 
 ## Looking forward
 
 | Term | Meaning | Not to be confused with |
 |---|---|---|
 | Budget | An intended amount for a category over a period, optionally rolling over | Commitment (an obligation, not an intention) |
-| Commitment | A recurring obligation — rent, utilities, insurance, a loan payment — with a cadence and a due date | Subscription (one kind of commitment) |
-| Planned purchase | A one-off intended spend with a target date, amount and priority | Transaction — it becomes one only when bought |
+| Commitment | A recurring obligation such as rent, utilities, insurance, or a loan payment, with a cadence and a due date | Subscription (one kind of commitment) |
+| Planned purchase | A one-off intended spend with a target date, amount and priority | Transaction - a planned purchase becomes one only when bought |
 | Forecast | A projected balance timeline from current balances, commitments and plans. Derived on every read, never stored | Report (about the past), budget (an intention) |
 | Missed commitment | A commitment whose due date passed with no matching transaction | Unparsed capture |
 | Wish | Something the household wants, with no date. Outside the forecast until dated | Planned purchase (dated, and in the forecast) |
-| Project | A named grouping of real transactions across categories and periods, with a target — a holiday, buying a house | Category (one kind of expense), budget (per category, per period) |
+| Project | A named grouping of real transactions across categories and periods, with a target, such as a holiday or buying a house | Category (one kind of expense), budget (per category, per period) |
 
 ## Process
 
@@ -73,4 +74,4 @@ by vision principle 10, no member ever reads the words *posting*, *debit* or
 |---|---|---|
 | Slice | One shippable increment of the product, one spec | Task (a step inside a spec) |
 | Digest | A report pushed into Telegram on a schedule | Report pulled in the app |
-| Heartbeat | A scheduled job's push on success; its absence is what raises the alarm | Health check (a probe we send) |
+| Heartbeat | A scheduled job's push on success; when the push doesn't arrive, the monitor raises the alarm | Health check (a probe we send) |

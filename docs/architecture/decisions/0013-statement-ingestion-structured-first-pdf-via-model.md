@@ -8,127 +8,134 @@ supersedes: []
 superseded-by: []
 ---
 
-# ADR 0013 — Statement ingestion: structured formats first, PDF through the model as a fallback
+# ADR 0013 - Statement ingestion: structured formats first, PDF through the model as a fallback
 
 ## Context
 
 The books are only trustworthy if they agree with the bank (vision principle 9),
-so importing statements is what turns the ledger from "what we remembered" into
-"what actually happened".
+so importing statements is what turns the ledger from what the household
+remembered into what actually happened.
 
-PDF is the format a statement is most obviously *offered* in, and the wrong one to
-build on. What the household's providers actually offer:
+A statement is most obviously offered as a PDF, and we decided not to build on
+that format, because every provider the household uses also offers something a
+parser can read:
 
-- **ABN AMRO and ING** both export **CAMT.053** (ISO 20022 XML), MT940, XLS, TXT
-  and PDF. Dutch accounting guidance is explicit that the PDF *rekeningafschrift*
-  is for reading and that MT940 or CAMT.053 is what you import.
-- **MT940 is being retired** — SWIFT withdrew support in November 2025, with
-  CAMT.053 as the successor, carrying richer per-transaction detail and visibility
-  into batched transactions that MT940 loses.
-- **ICS** exports transactions as **CSV only**. MT940 is not offered; its PDF is a
-  statement copy.
+- ABN AMRO and ING both export CAMT.053 (ISO 20022 XML), MT940, XLS, TXT and
+  PDF. Dutch accounting guidance says the PDF *rekeningafschrift* is for reading
+  and that you import MT940 or CAMT.053.
+- SWIFT withdrew support for MT940 in November 2025 and names CAMT.053 as its
+  successor, because CAMT.053 carries richer per-transaction detail and shows
+  what is inside a batched transaction, which MT940 loses.
+- ICS exports transactions as CSV only. It offers no MT940, and its PDF is a
+  copy of the statement.
 
-So a structured path exists for every provider the household uses. But PDF cannot
-simply be dropped: it is what exists for an old period, for a provider that
-changes its export, for a one-off document, and for anything arriving as a
-forwarded attachment rather than a deliberate download. The owner wants both.
+We still can't drop PDF, because a PDF is what exists for an old period, for a
+provider that changes its export, for a one-off document, and for anything that
+arrives as a forwarded attachment rather than a deliberate download. The owner
+asked for both ways in.
 
-The two paths differ in a way that matters more than file format: one is
-deterministic and the other is a model's reading of a picture. Treating them as
-interchangeable would put a hallucinated amount into the household's financial
-truth.
+The two paths differ in something that matters more than the file format. A
+parser reads a structured export the same way every time, while the model path
+is a model's reading of a picture, so treating the two as interchangeable would
+let a hallucinated amount into the household's financial truth.
 
 ## Decision
 
-**Support both, normalise both, and never confuse their trustworthiness.**
+We support both paths, turn both into the same statement lines, and keep a
+record on every line of how much we trust it.
 
 ### One normalised target
 
-Every import — whatever the format — produces **statement lines** in one
-format-agnostic shape: account, booking date, value date, amount in minor units,
-currency, the provider's own transaction reference where it has one, the raw
-descriptor, and the counterparty details the format happened to carry.
+Every import, whatever the format, produces **statement lines** in one shape
+that owes nothing to the source format: account, booking date, value date,
+amount in minor units, currency, the provider's own transaction reference where
+it has one, the raw descriptor, and whatever counterparty details the format
+carried.
 
-Each line records its **provenance**: the source file, its format, which parser or
-model produced it, and for the model path, what the model returned. One
-reconciliation mechanism then runs over statement lines and knows nothing about
-where they came from — the same mechanism that matches commitments and planned
-purchases (ADR 0012).
+Each line records its provenance: the source file, its format, which parser or
+model produced it, and, on the model path, what the model returned.
+Reconciliation then runs over statement lines and knows nothing about where they
+came from, so it is the same code that matches commitments and planned purchases
+(ADR 0012).
 
 ### Structured is authoritative, PDF is provisional
 
-- **CAMT.053** is the preferred format for the banks; **MT940** is accepted for
-  historical files; **CSV** is the path for ICS and for any provider that offers
-  nothing better; **XLS** is treated as CSV.
-- **A structured parse is authoritative.** No model is involved, so there is
-  nothing to second-guess and no per-import cost.
-- **A PDF-derived line is provisional.** It is marked as model-derived and is
-  **superseded, not duplicated**, when a structured export covering the same
-  account and period arrives later. Re-import is therefore an upgrade path rather
-  than a source of double entries.
+- CAMT.053 is the format we prefer for the banks, we accept MT940 for historical
+  files, CSV is the path for ICS and for any provider that offers nothing
+  better, and we treat XLS as CSV.
+- A structured parse is **authoritative**, because no model is involved: there
+  is nothing to second-guess and no per-import cost.
+- A PDF-derived line is provisional. We mark it as model-derived, and when a
+  structured export covering the same account and period arrives later, that
+  export supersedes the line instead of duplicating it. Re-importing is
+  therefore how PDF data gets upgraded, not how double entries appear.
 
 ### The statement's own totals are the checksum
 
-Both CAMT.053 and a readable PDF carry opening and closing balances. An import is
-accepted only if the lines reconcile to the closing balance for the period.
-**If they do not, nothing is applied** — the import is rejected with the
-discrepancy shown. This is what makes the model path safe enough to allow: a
-misread amount does not produce a plausible wrong ledger, it produces a refused
-import.
+Both CAMT.053 and a readable PDF carry opening and closing balances, so we
+accept an import only when its lines reconcile to the closing balance for the
+period. If they don't, we apply nothing and reject the import with the
+discrepancy shown. That check is what makes the model path safe enough to
+allow: a misread amount produces a refused import rather than a plausible wrong
+ledger.
 
 ### Imports are batches, and reversible
 
-- An import is one recorded batch with its file, its provenance and its outcome.
-- **Re-importing the same file changes nothing.** Idempotency keys on the
+- An import is one recorded batch, with its file, its provenance and its
+  outcome.
+- Re-importing the same file changes nothing, because we key idempotency on the
   provider's transaction reference where the format supplies one, and on a
   content fingerprint plus matching where it does not.
-- **An import can be undone as a unit.** A reconciliation can create and modify
-  many transactions at once, so the ability to reverse one wholesale is a
-  requirement, not a convenience — and it is what ADR 0008's audit log makes
+- You can undo an import as a unit. Reconciling one file can create and modify
+  many transactions at once, so reversing the whole batch is a requirement
+  rather than a convenience, and ADR 0008's audit log is what makes the reversal
   verifiable.
 
 ### Cost and privacy follow the split
 
-The model is invoked only on the PDF path, so the recurring case costs nothing and
-sends nothing outside the household. A PDF sent to the model is a whole statement
-— more sensitive than a single capture — which is another reason it is the
-fallback and not the default.
+We call the model only on the PDF path, so the recurring case costs nothing and
+sends nothing outside the household. A PDF sent to the model is a whole
+statement, which is more sensitive than a single capture, and that is the second
+reason the PDF path is the fallback.
 
 ## Alternatives
 
 | Option | Why rejected |
 |---|---|
-| PDF plus a vision model as the only path | Puts a model in the path of the household's financial truth, paid per page, with errors that look plausible — when a deterministic export exists for every provider the household uses |
-| Structured formats only, no PDF at all | Cleaner, cheaper, and rejected by the owner for good reason: it leaves historical periods, one-off documents and forwarded attachments with no way in |
-| Treat both paths identically once parsed | Loses the distinction between a parsed number and a guessed one, which is precisely the distinction that makes allowing PDFs acceptable |
-| MT940 as the primary format | Widely documented and simple, but being retired, and it hides the detail of batched transactions |
-| Bank APIs or PSD2 aggregators | Explicitly out of scope in the vision, and would place a third party inside the books |
-| A third-party converter (CSV to MT940 and similar) | Adds a dependency and a format hop to reach a format we do not want anyway |
+| PDF plus a vision model as the only path | Puts a model in the path of the household's financial truth, paid per page, with errors that look plausible - when a deterministic export exists for every provider the household uses |
+| Structured formats only, no PDF at all | Cleaner and cheaper, but the owner rejected it because it leaves historical periods, one-off documents and forwarded attachments with no way in |
+| Treat both paths identically once parsed | Loses the difference between a parsed number and a guessed one, which is the difference that makes allowing PDFs acceptable |
+| MT940 as the primary format | Widely documented and simple, but SWIFT is retiring it, and it hides what is inside a batched transaction |
+| Bank APIs or PSD2 aggregators | The vision puts them out of scope, and they would place a third party inside the books |
+| A third-party converter (CSV to MT940 and similar) | Adds a dependency and a format hop to reach a format we don't want anyway |
 
 ## Consequences
 
 **Good:**
-- The common case — a monthly download from each provider — is deterministic,
+- The common case, a monthly download from each provider, is deterministic,
   free and exact.
-- PDFs remain possible, so no period or document is unreachable.
-- A misread PDF cannot quietly corrupt the books: the closing-balance check
-  refuses the import instead.
-- One reconciliation mechanism, shared with commitments and planned purchases.
-- Re-importing is safe and, for PDF-derived data, an improvement.
+- PDFs still work, so no period and no document is out of reach.
+- A misread PDF can't quietly corrupt the books, because the closing-balance
+  check refuses the import.
+- Commitments, planned purchases and statements all go through the same
+  reconciliation code, so they can't drift apart.
+- Re-importing is safe, and for PDF-derived data it replaces guesses with parsed
+  numbers.
 
 **Bad, and the price we accept:**
-- Four input formats to support, plus the model path — more parsing surface than
-  a single format would need. CAMT.053 in particular is verbose XML, and banks
-  differ in how they fill its free-text fields.
-- The provisional-versus-authoritative distinction must be visible in the app and
-  in reports, or it will be forgotten precisely when it matters.
-- The closing-balance invariant will sometimes refuse an import that a human can
-  see is fine — a mid-period export, an unusual batched transaction. A documented
-  override is needed, and it must be recorded as an override.
-- Statement files, including PDFs, are the most sensitive data the system holds,
-  and they now accumulate in the database and the backups.
+- We have four input formats to parse, plus the model path, which is more code
+  than a single format would need. CAMT.053 in particular is verbose XML, and
+  banks differ in how they fill its free-text fields.
+- The app and the reports have to show which lines are provisional and which are
+  authoritative, or the household will forget the difference exactly when it
+  matters.
+- The closing-balance check will sometimes refuse an import that a person can
+  see is fine, such as a mid-period export or an unusual batched transaction. We
+  need a documented override, and it has to be recorded as an override.
+- Statement files, PDFs included, are the most sensitive data the system holds,
+  and they now pile up in the database and in the backups.
 
 **What becomes harder to change later:**
-- The normalised statement-line shape, once imports have run against it. Hence
-  keeping it format-agnostic and provenance-carrying from the first migration,
-  rather than modelled on whichever format is implemented first.
+- The normalised statement-line shape, once imports have run against it. That is
+  why we keep it format-agnostic and carrying provenance from the first
+  migration, instead of modelling it on whichever format we implement first.

@@ -3,6 +3,8 @@ description: Write the implementation plan for an approved spec
 argument-hint: <NNNN — spec number>
 ---
 
+Load the `technical-english` skill before drafting: a plan is a design doc, and its reader is deciding whether the approach holds.
+
 Write the implementation plan for spec $ARGUMENTS.
 
 1. Find `specs/$ARGUMENTS-*/` and read `spec.md` in full, plus `notes.md` if present.

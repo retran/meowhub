@@ -3,6 +3,8 @@ description: Draft a new architecture decision record
 argument-hint: <the decision, in a phrase>
 ---
 
+Load the `technical-english` skill before drafting. Its `ADR` document type fixes the skeleton: context, decision, consequences, alternatives.
+
 Draft an ADR for: $ARGUMENTS
 
 1. Check it belongs here. An ADR records a decision that **outlives one feature**:

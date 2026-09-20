@@ -8,127 +8,131 @@ owner: owner
 supersedes: []
 ---
 
-# 0001 — Infrastructure bootstrap
+# 0001 - Infrastructure bootstrap
 
 ## Problem
 
-Nothing in this project can be verified yet. There is no host, no database, no
-place for a workflow to run, no way to restore what a workflow produces. Every
-later slice would otherwise carry its own share of setup, and the first real
-mistake — a dropped table, a bad reconciliation — would be unrecoverable because
-backups arrived "later".
+We can't verify anything in this project yet, because the household has no host,
+no database, no place to run a workflow, and no way to restore what a workflow
+produces. Unless one slice builds all of that first, every later slice carries
+its own setup, and the first real mistake - a dropped table, a bad
+reconciliation - costs the data, because the backups were still scheduled for
+"later".
 
-There is also a specific trap to avoid. A low-code system assembled by clicking
-leaves nothing to review and nothing to rebuild from, so the habits that make
-that impossible have to exist before the first workflow does.
+The second problem is how low-code systems usually get built. If you assemble
+one by clicking through admin screens, nothing is left to review and nothing is
+left to rebuild from, so we need the export and migration habits in place before
+the first workflow exists.
 
 ## Why
 
-After this slice, the household has a running, reachable, authenticated and
-restorable installation with an empty ledger schema. The measure is not that it
-works but that it can be *rebuilt*: a fresh host plus this repository plus the
-secrets plus the latest backup produces the same system.
+After this slice the household has a running, reachable, authenticated, and
+restorable installation with an empty ledger schema. We measure that by
+rebuilding rather than by uptime: a fresh host, this repository, the secrets,
+and the latest backup must produce the same system, because an installation
+nobody can reproduce is one disk failure away from gone.
 
 ## Users and scenarios
 
-- **Owner** wants a deployed environment so that the next slice can be built and
-  tested against something real.
+- **Owner** wants a deployed environment so that he can build and test the next
+  slice against something real.
 - **Owner** wants to open the automation editor from his phone or laptop with
-  Face ID, so that administration does not depend on a shared password.
+  Face ID, so that administering the system doesn't depend on a shared password.
 - **Owner** wants to know a backup is good without being asked to check, so that
-  trust in the system does not rest on his memory.
+  trust in the system doesn't rest on his memory.
 
 ## Requirements
 
-- **R1.** The whole system must be defined in one Docker Compose file, with all
-  configuration supplied through environment variables and no values baked into
-  images.
+- **R1.** The whole system must be defined in one Docker Compose file, with
+  every setting supplied through environment variables and no value baked into
+  an image.
 - **R2.** The system must run unchanged on a rented host and on a household
-  machine; the only differences permitted between environments are environment
-  variables, DNS and the ingress mechanism.
+  machine. Only the environment variables, the DNS records, and the ingress can
+  differ between the two.
 - **R3.** A database must exist for household data, separate from the databases
-  used by the platform's own components.
-- **R4.** The household data schema must be created and changed only by
-  versioned migration files stored in this repository, applied in order, with
-  the applied state recorded.
+  the platform's own components use.
+- **R4.** Only versioned migration files stored in this repository must create
+  or change the household data schema. They apply in order, and the system
+  records which ones it has applied.
 - **R5.** The Telegram bot must be reachable over HTTPS from the internet, and
-  the mechanism providing that must be replaceable without changing anything
+  whatever provides that reach must be replaceable without changing anything
   inside the system.
-- **R5a.** The public surfaces must be rate-limited at the edge. The webhook is
-  reachable by anyone who finds the bot, and while an unlinked sender is refused
-  before any model is called (spec 0002), an unbounded flood still costs
+- **R5a.** The public surfaces must be rate-limited at the edge. Anyone who
+  finds the bot can reach the webhook, and although spec 0002 refuses an
+  unlinked sender before any model is called, an unbounded flood still costs
   workflow executions and log volume.
-- **R6.** No web surface may be publicly reachable without passing through the
-  authentication boundary. This slice installs and wires that boundary; who may
-  sign in and what they may reach is spec 0002.
+- **R6.** Every web surface must pass through the authentication boundary before
+  it is publicly reachable. This slice installs and wires that boundary; spec
+  0002 decides who can sign in and what they can reach.
 - **R7.** A dedicated volume must exist for uploaded files, addressed by content
-  hash, and it must be part of the backup set.
+  hash, and the backup set must include it.
 - **R8.** Every scheduled job must report success by pushing a heartbeat, and a
-  missing heartbeat inside its window must raise an alert — silence must not be
-  indistinguishable from success.
+  missing heartbeat inside its window must raise an alert, so that a job which
+  stopped running can't look like a job that succeeded.
 - **R9.** Secrets must never be stored in this repository. Every required
   variable must be documented by name with no value.
 - **R9c.** Every deployment setting must be an environment variable listed in
-  `.env.example`, and no component may carry a default for a required variable in
-  code: a missing one must fail at startup, not at first use (ADR 0034). Household
-  settings belong in the database instead, not in `.env`.
-- **R9a.** The secret inventory must be enumerated explicitly, and every entry
-  must have two custodians (ADR 0024). It comprises at least: the restic
-  repository password; the offsite storage credentials; the PostgreSQL
-  superuser and per-role passwords; the Telegram bot token; the model gateway
-  key; the identity provider's bootstrap and recovery credentials; the Apple
-  `.p8` signing key; the PostgREST JWT secret; and — **easily missed and
-  unrecoverable — the n8n encryption key**, without which every credential
+  `.env.example`, and no component must carry a default for a required variable
+  in code: a missing one must fail at startup, not at first use (ADR 0034). A
+  household setting belongs in the database instead, not in `.env`.
+- **R9a.** The secret inventory must be listed entry by entry, and every entry
+  must have two custodians (ADR 0024). It holds at least: the restic repository
+  password; the offsite storage credentials; the PostgreSQL superuser and
+  per-role passwords; the Telegram bot token; the model gateway key; the
+  identity provider's bootstrap and recovery credentials; the Apple `.p8`
+  signing key; the PostgREST JWT secret; and the n8n encryption key, which is
+  the one people forget and can't recreate, because without it every credential
   stored inside n8n is lost even though the database restores cleanly.
-- **R9b.** A restore must be shown to work **with only the inventory in R9a**,
+- **R9b.** A restore must be shown to work using only the inventory in R9a,
   which is what proves nothing undocumented is holding the system together.
 - **R10.** A backup must be taken automatically every night, encrypted before it
   leaves the host, and stored both locally and in an offsite location.
 - **R11.** A restore of the most recent backup must be verified automatically on
-  a schedule, and the result reported to the admins in Telegram — including, and
-  especially, failure.
-- **R12.** The configuration of every component that is configured through a UI
-  must be exportable to files in this repository by a single documented command.
+  a schedule, and the result must be reported to the admins in Telegram,
+  including when the restore fails.
+- **R12.** One documented command must export the configuration of every
+  component that is configured through a UI into files in this repository.
 - **R13.** Drift between the running configuration and the committed
   configuration must be detected on a schedule and reported to the admins.
-- **R14.** The documented rebuild procedure must be executable by **either admin**
-  from this repository, the secrets and a backup, with no undocumented step.
-- **R14a.** The whole system must be runnable **locally as one command**, with no
-  public endpoint, no domain and no tunnel: the same Compose file, a local
-  environment file, and the seeded household.
-- **R14b.** Telegram updates must be deliverable by **webhook when deployed and by
-  long polling locally**, selected by one environment variable (ADR 0033), with a
+- **R14.** Either admin must be able to run the documented rebuild procedure
+  from this repository, the secrets, and a backup, with no undocumented step.
+- **R14a.** The whole system must run locally as one command, with no public
+  endpoint, no domain, and no tunnel: the same Compose file, a local environment
+  file, and the seeded household.
+- **R14b.** Telegram updates must be deliverable by webhook when deployed and by
+  long polling locally, selected by one environment variable (ADR 0033), with a
   separate bot registration and token for local use.
-- **R14c.** The local mode must require no paid account of any kind: the model
-  gateway stubbed (R17), and sign-in by email and password (ADR 0032), so a
+- **R14c.** Local mode must require no paid account of any kind: the model
+  gateway is stubbed (R17) and sign-in uses email and password (ADR 0032), so a
   developer needs nothing bought to exercise the system.
-- **R14e.** There must be a **scaffold command that creates the first admin
-  account** from environment variables — an email and an initial password — so a
-  fresh deployment, local or rented, can be reached without any manual step in a
-  provider's UI. It must refuse to run if any account already exists, and the
-  initial password must be changed on first sign-in (spec 0002).
-- **R15.** A test harness must exist and be runnable as one command: a throwaway
+- **R14e.** A scaffold command must create the first admin account from
+  environment variables, an email and an initial password, so that a fresh
+  deployment, local or rented, can be reached without a manual step in a
+  provider's UI. The command must refuse to run if any account already exists,
+  and the initial password must be changed on first sign-in (spec 0002).
+- **R15.** A test harness must exist and run as one command: a throwaway
   PostgreSQL with the migrations applied, a database test framework, and a seed
-  script building the synthetic household.
+  script that builds the synthetic household.
 - **R16.** The tests must run automatically on every push, and a failure must be
   visible without anyone looking for it. Continuous integration runs on GitHub
   Actions.
-- **R16a.** Every documented command must be a task in a **Taskfile**, so that
-  bootstrap, migrate, test, export and backup are invoked identically by a person
-  locally and by continuous integration.
+- **R16a.** Every documented command must be a task in a Taskfile, so that a
+  person working locally and continuous integration invoke bootstrap, migrate,
+  test, export, and backup the same way.
 - **R17.** The model gateway must be stubbable by configuration, so that tests
   run offline and without cost.
-- **R17a.** The repository must carry the **prompt and tool directories**, mounted
-  read-only into the workflow container and failing loudly at startup if absent
-  (ADRs 0025, 0039) — even before any product prompt exists.
+- **R17a.** The repository must carry the prompt and tool directories, mounted
+  read-only into the workflow container, and the container must fail loudly at
+  startup if they are absent (ADRs 0025, 0039), even before any product prompt
+  exists.
 - **R17b.** The health-check workflow must follow the conventions in ADR 0040:
   named for its job, one failure path, and no figure computed in a node.
 - **R18.** A message catalogue for Russian and English must exist in this
-  repository and be loaded by the deployed components, with a missing translation
-  failing visibly rather than silently rendering a slug.
+  repository and be loaded by the deployed components. A missing translation
+  must fail visibly rather than silently render a slug.
 - **R19.** Both admins must be able to perform a full restore alone, from the
-  written procedure and their own copies of the secrets, with nothing held by only
-  one of them.
+  written procedure and their own copies of the secrets, with nothing held by
+  only one of them.
 
 ## Scope
 
@@ -146,18 +150,18 @@ secrets plus the latest backup produces the same system.
 - The written rebuild procedure.
 
 **Out of scope (and why):**
-- Any ledger table beyond what a migration mechanism needs to prove itself — the
-  chart of accounts is spec 0003, and designing it here would split one decision
-  across two specs.
+- Any ledger table beyond what the migration mechanism needs to prove itself.
+  The chart of accounts is spec 0003, and designing it here would split one
+  decision across two specs.
 - Sign-in methods, roles, row-level security and the data path (spec 0002).
-- Any workflow that does product work. A single health-check workflow is
-  permitted, because the deployment claim cannot be verified without one.
-- The ledger's own tests. The harness is built here; what it tests arrives with
+- Any workflow that does product work. One health-check workflow is allowed,
+  because we can't verify the deployment claim without it.
+- The ledger's own tests. We build the harness here; what it tests arrives with
   the schema in spec 0003.
-- Any product workflow beyond the health check. Local mode must be able to run
+- Any product workflow beyond the health check. Local mode has to be able to run
   them, but they arrive with their own slices.
 - The household app and its screens (spec 0006). PostgREST is deployed here,
-  because the authentication and row-level-security path must be proven before
+  because we have to prove the authentication and row-level-security path before
   anything binds to it.
 - The migration to the home server (spec 0010). This slice only guarantees that
   nothing prevents it.
@@ -173,29 +177,30 @@ secrets plus the latest backup produces the same system.
       none are present, and every variable used by the Compose file appears by
       name in `.env.example`.
 - [ ] **A3a.** Given the secret inventory, when each entry is checked, then it
-      exists in both admins' vaults — and the n8n encryption key specifically is
+      exists in both admins' vaults, and the n8n encryption key specifically is
       present, because a database restore without it silently loses every stored
       credential.
 - [ ] **A4.** Given a new migration file, when migrations are applied, then it is
       applied exactly once, and applying twice changes nothing.
 - [ ] **A5.** Given a message sent to the registered bot from any Telegram
       account, when the health-check workflow receives it, then a reply is
-      produced — proving the public HTTPS path reaches the automation platform.
+      produced, which proves the public HTTPS path reaches the automation
+      platform.
 - [ ] **A5a.** Given a flood of requests to a public surface, when the rate limit
       is exceeded, then further requests are rejected at the edge and the system
       behind it stays responsive.
 - [ ] **A6.** Given an unauthenticated browser, when any web surface is requested,
       then no surface content is served and the request reaches the identity
-      provider — demonstrated for every deployed surface, including by requesting
-      a container's port directly. Who may then sign in is spec 0002.
+      provider, demonstrated for every deployed surface, including by requesting
+      a container's port directly. Who can then sign in is spec 0002.
 - [ ] **A7.** Given a file uploaded twice, when it is stored, then one copy exists
       on the volume addressed by its hash, and the second upload is recognised as
       the same file.
 - [ ] **A7a.** Given a stored file whose bytes are then corrupted, when the
       integrity check runs, then the mismatch is reported to the admins.
 - [ ] **A8.** Given a scheduled job that is prevented from running, when its
-      heartbeat window passes, then an alert reaches the admins — verified by
-      stopping a job, not by reasoning about it.
+      heartbeat window passes, then an alert reaches the admins, verified by
+      stopping a job rather than by reasoning about it.
 - [ ] **A8a.** Given a string with no Russian translation, when it is rendered,
       then the failure is visible rather than silently showing a slug.
 - [ ] **A9.** Given a night has passed, when the backup repository is inspected,
@@ -213,26 +218,26 @@ secrets plus the latest backup produces the same system.
       then the admins receive a report naming the component.
 - [ ] **A14.** Given a second empty host, when the rebuild procedure is followed
       using the repository, the secrets and the latest backup, then the resulting
-      system passes A1, A5 and A6 — and this is performed once, not reasoned about.
+      system passes A1, A5 and A6, performed once rather than reasoned about.
 - [ ] **A14a.** Given a clean checkout on a laptop with no domain and no tunnel,
       when the local command is run, then the whole system starts, the seed loads,
-      and a message sent to the local bot is captured — proving the contour
+      and a message sent to the local bot is captured, which proves the contour
       without a deployment.
 - [ ] **A14b.** Given the local deployment, when the delivery mode is switched
       between webhook and polling, then only the environment variable changes and
       no workflow or code is edited.
 - [ ] **A14c.** Given the local deployment, when it is inspected, then it uses the
-      **local** bot token and cannot receive the household's messages.
+      local bot token and cannot receive the household's messages.
 - [ ] **A14d.** Given a fresh deployment with no accounts and the scaffold
       variables set, when the scaffold command is run, then a first admin exists
-      and can sign in with email and password — and when it is run again, it
+      and can sign in with email and password, and when it is run again, it
       refuses.
 - [ ] **A14e.** Given a required variable removed from the environment, when the
-      component starts, then it fails immediately and names the variable — rather
+      component starts, then it fails immediately and names the variable, rather
       than starting with a hidden default.
 - [ ] **A15.** Given a clean checkout, when the test command is run, then a
       throwaway database is created, migrations apply, the seed loads and the
-      suite passes — with no manual setup step.
+      suite passes, with no manual setup step.
 - [ ] **A16.** Given a deliberately broken migration pushed to a branch, when
       continuous integration runs, then it fails and the failure is reported.
 - [ ] **A17.** Given the model gateway configured to the local stub, when a test
@@ -244,43 +249,43 @@ States are named from [docs/standards/failure-vocabulary.md](../../docs/standard
 
 | Situation | Expected behaviour |
 |---|---|
-| A component fails to start | Bootstrap fails loudly with the failing component named; nothing reports healthy |
-| The offsite backup destination is unreachable | The local backup still succeeds; the admins are notified that the offsite copy is missing |
-| The restore verification cannot restore | Reported as failure in Telegram; the backup is not counted as good |
-| The identity provider is down | Web surfaces are unreachable rather than open. A documented break-glass path gives the admins host-level access |
-| Apple's sign-in is unavailable, or the developer membership lapses | Passkey sign-in still works for every member; nobody is locked out of the books |
-| A passkey's device is lost | The owner resets that member's credential; his own reset path does not depend on a single device |
-| The public hostname changes | Passkeys must be re-enrolled — documented, because it is otherwise discovered at the worst moment |
-| A migration fails halfway | It rolls back; the recorded applied state does not include it |
-| Telegram delivers the same update twice | The health-check workflow tolerates it without erroring — in both delivery modes, since polling re-delivers after a crash exactly as webhooks retry |
-| A local poller started while the production webhook is set | Impossible to confuse the two: the local deployment uses its own bot registration and token |
+| A component fails to start | Bootstrap fails loudly and names the failing component; nothing reports healthy |
+| The offsite backup destination is unreachable | The local backup still succeeds, and the admins are told the offsite copy is missing |
+| The restore verification cannot restore | Reported as a failure in Telegram, and the backup is not counted as good |
+| The identity provider is down | Web surfaces become unreachable rather than open, and a documented break-glass path gives the admins host-level access |
+| Apple's sign-in is unavailable, or the developer membership lapses | Passkey sign-in still works for every member, so nobody is locked out of the books |
+| A passkey's device is lost | The owner resets that member's credential, and his own reset path doesn't depend on a single device |
+| The public hostname changes | Everyone re-enrols their passkeys, which is documented here because it is otherwise discovered at the worst moment |
+| A migration fails halfway | It rolls back, and the recorded applied state doesn't include it |
+| Telegram delivers the same update twice | The health-check workflow tolerates it without erroring, in both delivery modes, because polling re-delivers after a crash exactly as webhooks retry |
+| A local poller started while the production webhook is set | The two can't be confused, because the local deployment uses its own bot registration and token |
 
 ## Ergonomic cost
 
-- **Who does more work:** an admin, once, for the initial setup — and then one
-  recurring obligation appears: glancing at the monthly restore verification
-  result. Seconds.
+- **Who does more work:** an admin, once, for the initial setup, and then one
+  recurring obligation: glancing at the monthly restore verification result. That
+  takes seconds.
 - **What queue or obligation it creates:** none for the household. Drift reports
-  and failed-heartbeat alerts are events, and each names the component so it is
-  actionable rather than a backlog.
-- **What it interrupts, and how often:** only failures, to the admins only. In a
-  healthy month that is one message — the restore verification succeeding.
+  and failed-heartbeat alerts are events, and each names the component, so an
+  admin can act on it instead of adding it to a backlog.
+- **What it interrupts, and how often:** only failures, and only for the admins.
+  In a healthy month that is one message, the restore verification succeeding.
 - **If nobody touches it for a month:** everything keeps running, backups keep
   being taken and verified, and the verification result is the one message that
-  proves it. That is the whole point of this slice: it is the part that must not
-  need attention.
+  proves it. This slice is the part of the system that must not need attention.
 
 ## Non-functional requirements
 
 These refine the shared baselines in [docs/standards/budgets.md](../../docs/standards/budgets.md); a figure here is stricter and says so, or the baseline applies.
 
-- **Cost:** the rented host must be a small single VPS; the whole system,
+- **Cost:** the rented host must be a small single VPS, and the whole system,
   excluding model usage, must fit in it.
-- **Recovery:** at most one night of data may be lost in a total host failure.
-- **Privacy:** no unencrypted household data may be written to any third-party
-  storage.
-- **Operability:** an admin must be able to see why something failed without
-  reading container logs by hand for routine failures — failures come to Telegram.
+- **Recovery:** a total host failure must lose at most one night of data.
+- **Privacy:** unencrypted household data must never be written to any
+  third-party storage.
+- **Operability:** for routine failures, an admin must be able to see why
+  something failed without reading container logs by hand, because failures come
+  to Telegram.
 
 ## Open questions
 
@@ -288,7 +293,7 @@ These refine the shared baselines in [docs/standards/budgets.md](../../docs/stan
 |---|---|---|---|
 | Q1 | The Telegram bot is already registered and its avatar set. Its token needs to reach the shared vault (ADR 0024) before this slice can run | deploy | open |
 | Q2 | Which hosting provider and instance size, and which domain name is used? The domain must be stable across the move home, because passkeys are bound to it | deploy | open |
-| Q3 | Which EU offsite backup destination — a Hetzner Storage Box, Scaleway or OVHcloud object storage? Non-EU destinations are excluded by ADR 0028 even though restic would encrypt before upload | deploy | open |
+| Q3 | Which EU offsite backup destination - a Hetzner Storage Box, Scaleway or OVHcloud object storage? ADR 0028 excludes non-EU destinations even though restic would encrypt before upload | deploy | open |
 | Q4 | Where is the sealed paper copy of the restic password kept, and who else knows (ADR 0024)? | deploy | open |
 
 

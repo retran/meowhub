@@ -3,6 +3,8 @@ description: Implement a spec's tasks in order
 argument-hint: <NNNN [T3] — spec number, optionally a single task>
 ---
 
+Load the `technical-english` skill first. It governs the task notes you write, the deviation log entries, and the commit message that closes the slice.
+
 Implement tasks for: $ARGUMENTS
 
 1. Read `spec.md`, `plan.md` and `tasks.md` from the spec directory. If

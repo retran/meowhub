@@ -4,13 +4,15 @@ created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
-# NNNN — Implementation plan
+# NNNN - Implementation plan
 
-> Answers "how". If the plan contradicts the spec, the spec gets fixed first.
+> This plan answers how. When the plan and the spec disagree, we fix the spec
+> first and then the plan.
 
 ## Approach
 
-One or two paragraphs: the chosen strategy and why this one.
+One or two paragraphs: the strategy we chose, and the reason we chose this one
+over the others. Name the constraint that decided it.
 
 ## Alternatives considered
 
@@ -20,22 +22,25 @@ One or two paragraphs: the chosen strategy and why this one.
 
 ## Affected areas
 
-Which parts of the system change and how. New workflows, changed contracts.
+Which parts of the system change, and how each one changes. Name the new
+workflows and the contracts that move.
 
 ## Contracts and data
 
-Public interfaces, message formats, table schemas — anything other parts will
-depend on.
+The public interfaces, message formats and table schemas that other parts will
+depend on. Anything listed here is something a later slice can break by
+accident, so give each one its columns, its types and its meaning.
 
 ## Migration and compatibility
 
-What happens to existing data and clients. Is a feature flag needed, is the
-change reversible.
+What happens to the data and the clients that already exist. Say whether the
+change needs a feature flag, and whether it can be reversed.
 
 ## Verification strategy
 
-What is covered by tests and at which level, what is checked by hand and how.
-Every acceptance criterion from the spec must appear here.
+What the tests cover and at which level, and what you check by hand and how.
+Every acceptance criterion from the spec appears in the table below, so that
+closing one means citing a named passing test.
 
 | Acceptance criterion | How we verify it |
 |---|---|
@@ -49,4 +54,6 @@ Every acceptance criterion from the spec must appear here.
 
 ## ADRs required
 
-Decisions in this plan that outlive the feature and must become ADRs.
+The decisions in this plan that outlive the feature, each of which has to become
+an ADR before the slice closes. Write "none" when the plan only implements
+decisions that already exist, and name them.

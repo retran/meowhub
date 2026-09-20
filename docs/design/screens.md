@@ -1,22 +1,23 @@
 # The app's screens, designed
 
-The process is in [../standards/ui-design-process.md](../standards/ui-design-process.md)
-and this is it applied, in order, to the four screens and one element that spec
-0006 ships. Steps 1 to 3 — the question, the data, the form — are done here in
-writing, before any layout exists, because that is what stops a screen promising
-an answer the books cannot support.
+[../standards/ui-design-process.md](../standards/ui-design-process.md) describes
+the process, and here we apply it in order to the four screens and one element
+that spec 0006 ships. We work steps 1 to 3 - the question, the data, the form -
+in writing before any layout exists, because writing them down is what stops a
+screen promising an answer the books cannot support.
 
-Nothing here computes a total. Every figure names the view it comes from, and
-each of those views is a migration in phase 4 of the implementation plan
+No screen here computes a total. Every figure names the view it comes from, and
+phase 4 of the implementation plan writes a migration for each of those views
 (ADRs 0004, 0014).
 
 ---
 
 ## Tokens the screens use
 
-ADR 0022's validated palette covers chart series, surfaces and ink. A UI needs
-four more neutrals. Unnamed, they get invented per screen, which is how a design
-system decays. They are tokens:
+ADR 0022's validated palette covers chart series, surfaces and ink, and a user
+interface needs four more neutrals on top of it. We name them here as tokens,
+because a neutral with no name gets invented again on every screen and the
+design system falls apart.
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
@@ -29,56 +30,60 @@ system decays. They are tokens:
 | `--text-secondary` | `#52514e` | `#c3c2b7` | |
 | `--border` | `rgba(11,11,11,0.07)` | `rgba(255,255,255,0.10)` | |
 
-Series and status colours come from ADR 0022 unchanged, light and dark columns
-both. Nothing in a screen may use a hex that is not one of these.
+Series and status colours come from ADR 0022 unchanged, in both the light and
+the dark columns. No screen uses a hex value that is not one of these.
 
 ## Theme and language are the member's, not the device's
 
-Both are switchable, and both are **properties of the member** (ADR 0034: the
-household changes it, so it is data). A member who switches to English on their
-phone gets English on the laptop and from Meow in chat.
+You switch both, and both belong to the member and not to the device, because
+ADR 0034 says that what the household changes is data. Switch to English on your
+phone and you get English on the laptop and from Meow in chat as well.
 
-- **Theme**: `Как в системе` · `Светлая` · `Тёмная`. The default follows the
-  device; an explicit choice wins over it in both directions.
+- Theme: `Как в системе`, `Светлая`, `Тёмная`. The default follows the device,
+  and an explicit choice wins over the device in both directions.
 
-**Dark is its own token column, not an inversion** — and three things change
-beyond colour, which is what makes it a design rather than a filter:
+We give dark its own column of token values instead of inverting the light ones,
+and three things change beyond colour, which is what makes dark a design and not
+a filter:
 
-1. **A filled button inverts.** The primary button is dark ink on light; on a dark
-   ground a dark button disappears, so it becomes light with dark text. The same
-   goes for a filled checkbox and its tick.
-2. **A drop shadow becomes a border.** The command palette's shadow is invisible
-   on a dark ground; it carries a light hairline instead.
-3. **The selected-row tint turns cool.** The pale blue that reads as "focused" on
+1. A filled button inverts. The primary button is dark ink on light, and on a
+   dark ground a dark button disappears, so it becomes light with dark text. A
+   filled checkbox and its tick invert the same way.
+2. A drop shadow becomes a border. The command palette's shadow is invisible on
+   a dark ground, so it carries a light hairline instead.
+3. The selected-row tint turns cool. The pale blue that reads as "focused" on
    white is invisible at 4 % on near-black, so dark uses a deeper, cooler tint.
 
-Series colours come from the validated palette's **dark column** (`#3987e5`
-rather than `#2a78d6`, and so on) — stepped for the dark surface and validated as
-a set, not lightened by eye.
-- **Language**: Russian or English, and it moves the bot's replies with it
+Series colours come from the dark column of the validated palette (`#3987e5` in
+place of `#2a78d6`, and so on), stepped for the dark surface and validated as a
+set, because lightening the light column by eye breaks the contrast the
+validator checks.
+- Language: Russian or English, and it moves the bot's replies with it
   (ADR 0017). Numbers and dates follow the language: `1 847,20 €` against
   `1,847.20 €`.
-- **On the phone** both live in *Мои настройки*; **on desktop** they are two small
+- On the phone both live in *Мои настройки*; on desktop they are two small
   switchers in the header, because that is where someone looks for them.
-- **Everything is localisable.** No string in the app is a literal: labels,
-  empty states, errors, button text, the shortcut map and the command palette all
-  come from the catalogue, and a missing translation fails visibly rather than
-  rendering a slug (ADR 0017).
+- Every string is localisable. The app holds no literal: labels, empty states,
+  errors, button text, the shortcut map and the command palette all come from
+  the catalogue, and a missing translation fails visibly instead of rendering a
+  slug (ADR 0017).
 
-## Screen 1 — Home
+## Screen 1 - Home
 
 ### 1. The question, and who asks it
 
-> **"What do we have, and what have we spent this month?"**
+> "What do we have, and what have we spent this month?"
 
-Asked by either parent, most days, standing up, in under ten seconds. The
-daughter opens it for one thing only, which is not on this screen (see screen 4).
+Either parent asks it, most days, standing up, in under ten seconds. The
+daughter opens the app for one thing only, and screen 4 has it.
 
-It is deliberately two questions, because they are always asked together and
-answering only one is useless: a balance without a spend rate is a snapshot, and
-a spend rate without balances is an anxiety.
+We made it two questions on purpose, because the household always asks them
+together and one answer on its own is useless: a balance without a spend rate is
+a snapshot, and a spend rate without balances only makes people anxious.
 
 ### 2. The data, before the layout
+
+Five figures answer the question, and each one names the view it reads.
 
 | Figure | View | Notes |
 |---|---|---|
@@ -88,22 +93,26 @@ a spend rate without balances is an anxiety.
 | Unconfirmed count | `v_unconfirmed_summary` | count, oldest, and whether any exceed the age ceiling |
 | Whether the period is reconciled | `v_period_reconciliation` | per account and per period |
 
-If a figure is not in that table, it is not on this screen at any price.
+A figure that is not in that table does not go on this screen, whatever anyone
+offers for it.
 
 ### 3. The form, from the data's job
 
-- **Month to date is a single headline** — a hero number with a delta against
-  last month. It is one value; the form heuristic says that is a number, not a
-  chart, and a sparkline here would decorate rather than inform.
-- **Balances are stat tiles**, one per account, because they are identity plus
-  magnitude and the comparison between them is not the point.
-- **Unconfirmed is a status row**, not a figure: a count and a way in.
-- **No chart on this screen.** Trends are screen 2; putting one here would make
-  the ten-second glance a five-second delay.
+- Month to date is a single headline: a hero number with a delta against last
+  month. It is one value, and the form heuristic turns one value into a number
+  and not a chart, so a sparkline here would decorate the screen without telling
+  you anything.
+- Balances are stat tiles, one per account, because each tile carries an
+  identity and a magnitude and comparing the accounts against each other is not
+  what you came for.
+- Unconfirmed is a status row and not a figure: a count, and a way in.
+- This screen carries no chart, because trends live on screen 2 and a chart here
+  would turn a ten-second glance into a five-second delay.
 
 ### 4. Layout at 390 px, content first
 
-Hierarchy: the month's number, then what we have, then what needs attention.
+The month's number comes first, then what the household holds, then what needs
+attention.
 
 ```
 ┌──────────────────────────────┐
@@ -125,40 +134,47 @@ Hierarchy: the month's number, then what we have, then what needs attention.
 └──────────────────────────────┘
 ```
 
-Primary content sits in thumb reach; nothing requires landscape; the accounts
-list is the only part that scrolls.
+The primary content sits in thumb reach, nothing on the screen needs landscape,
+and the accounts list is the only part that scrolls.
 
 ### 5. Every state
+
+The screen has eight states, and each one below says what you see in it.
 
 | State | What it shows |
 |---|---|
 | Empty because new | No accounts yet: one line explaining that Meow sets the books up in chat, and nothing else. This is the first screen anyone sees |
-| Empty because period | Accounts with balances, and "no spending recorded yet this month" where the hero number would be — visibly different from the case above |
-| Loading | Skeleton in the shape of the content, not a spinner |
-| Slow | The hero number appears as soon as it is known; balances fill in after |
-| Error | "Can't reach the books" and a retry; **no stale figure shown as current** |
-| Unconfirmed present | The trust line under the hero, always, even at 0 % |
-| Period unreconciled | Stated on the period label, not as a warning |
-| Not permitted | A member who is not an admin sees no unconfirmed row at all — not a disabled one |
+| Empty because period | Accounts with balances, and "no spending recorded yet this month" where the hero number would be, drawn so that you can tell it apart from the row above at a glance |
+| Loading | A skeleton in the shape of the content, never a spinner |
+| Slow | The hero number appears as soon as the app knows it, and the balances fill in afterwards |
+| Error | "Can't reach the books" and a retry. The screen shows no stale figure as if it were current |
+| Unconfirmed present | The trust line sits under the hero always, even at 0 % |
+| Period unreconciled | The period label says so, and no warning appears |
+| Not permitted | A member who is not an admin sees no unconfirmed row, and not a disabled one either |
 
 ### 6. Both languages
 
-Longest strings checked: «ещё не подтверждено» against "not yet confirmed",
-«из −500 лимита» against "of −500 limit". The trust line wraps to two lines in
-Russian at 390 px and must be allowed to, not truncated. Account names are the
-household's own words and can be long — they ellipsise, the balance never does.
+We checked the longest strings in each language: «ещё не подтверждено» against
+"not yet confirmed", and «из −500 лимита» against "of −500 limit". At 390 px the
+trust line wraps to two lines in Russian, and the layout has to allow that
+instead of truncating it. Account names are the household's own words and run
+long, so a name ellipsises and a balance never does.
 
 ---
 
-## Screen 2 — Categories
+## Screen 2 - Categories
 
 ### 1. The question
 
-> **"Where is the money going, and is that changing?"**
+> "Where is the money going, and is that changing?"
 
-Asked by either parent, weekly rather than daily, usually after a digest.
+Either parent asks it about once a week, not every day, and usually right after
+a digest arrives.
 
 ### 2. The data
+
+Four figures answer it, three of them from the category views and one from the
+merchant view.
 
 | Figure | View |
 |---|---|
@@ -169,14 +185,15 @@ Asked by either parent, weekly rather than daily, usually after a digest.
 
 ### 3. The form
 
-- **The breakdown is horizontal bars**, ordered by amount, with values direct
-  labelled. Magnitude plus identity, and bars beat a pie the moment there are
-  more than three slices — which there always are.
-- **A category over time is a line**, months on the x axis, one series.
-- **The table view exists** for both, which also satisfies the light-mode relief
-  rule where a bar uses one of the three lower-contrast slots (ADR 0022).
-- Colour is per category, stable across every screen and every period: a filter
-  that changes the category count must not repaint the survivors.
+- The breakdown is horizontal bars, ordered by amount, with the values labelled
+  directly on them. Each bar carries a magnitude and an identity, and bars read
+  better than a pie past three slices, which this household always has.
+- A category over time is a line, with months on the x axis and one series.
+- Both forms also have a table view, which satisfies the light-mode relief rule
+  for a bar that uses one of the three lower-contrast slots (ADR 0022).
+- Each category keeps its colour across every screen and every period, so a
+  filter that changes how many categories are shown must not repaint the ones
+  that remain.
 
 ### 4. Layout
 
@@ -207,98 +224,103 @@ Asked by either parent, weekly rather than daily, usually after a digest.
 
 ### 5. States
 
-Empty-new; empty-period ("nothing in this category this month" — zero shown, not
-the row omitted, so its absence is not mistaken for a bug); a single month of
-history, where the line is one point and says so rather than drawing a line
-between one value; loading; error; a category with an unreviewed flag from the
-agent (ADR 0031) marked as such.
+The screen handles six states. It is empty because the system is new, or empty
+for the period, where it says "nothing in this category this month" and shows a
+zero instead of dropping the row, so that nobody reads a missing row as a bug.
+With a single month of history it draws one point and says so, because a line
+through one value would invent a trend. It also has a loading state, an error
+state, and a state for a category the agent created and nobody has reviewed
+(ADR 0031), which the screen marks.
 
 ### 6. Both languages
 
-Category names come from the translations table, so both languages are data, not
-layout — but Russian names run longer and the bar labels must wrap under the bar
-rather than squeeze it.
+Category names come from the translations table, so both languages arrive as
+data and the layout does not change with them. Russian names still run longer,
+so a bar label wraps under its bar instead of squeezing it.
 
 ---
 
-## Screen 3 — Merchants
+## Screen 3 - Merchants
 
-The same question one level down — **"Which shops are taking the money?"** — and
-deliberately the same form as screen 2: bars for the period, a line for one
-merchant over months, the table view, colour stable per merchant. Data:
-`v_merchant_spend`, `v_merchant_spend_by_month`.
+This screen asks the same question one level down, "Which shops are taking the
+money?", and we gave it the same form as screen 2 on purpose: bars for the
+period, a line for one merchant over months, a table view, and a stable colour
+per merchant. It reads `v_merchant_spend` and `v_merchant_spend_by_month`.
 
-Two differences that matter:
+Two things differ from screen 2:
 
-- **Merchant names are data, never translated** (ADR 0017), so this screen is
-  identical in both languages and is where long names are most likely.
-- **A merge is offered here**, for admins, when two merchants look like the same
-  shop (ADR 0031) — the one action on this screen, and it restates before
-  applying.
+- Merchant names are data and we never translate them (ADR 0017), so this screen
+  looks identical in both languages, and it is where the longest names turn up.
+- An admin can merge two merchants here when they look like the same shop
+  (ADR 0031). It is the only action on the screen, and it restates what it will
+  do before it applies anything.
 
 ---
 
-## Screen 4 — Members
+## Screen 4 - Members
 
 ### 1. The question
 
-> **"Who spent what?"**
+> "Who spent what?"
 
-Asked by an admin occasionally, and by the daughter for one reason: *what have I
-spent, and what is left.*
+An admin asks it now and then, and the daughter asks it for one reason: *what
+have I spent, and what is left.*
 
 ### The rule that shapes this screen
 
-This is the screen most capable of doing harm. A household ledger that ranks its
-members produces exactly the behaviour the product does not want — hiding
-expenses, or arguing about them — and the persona forbids commenting on spending
-at all (`agent-persona.md`).
+This screen can do more harm than any other, because a household ledger that
+ranks its members teaches people to hide expenses and argue about them, and the
+persona forbids Meow to comment on spending at all (`agent-persona.md`).
 
-So, explicitly:
+So we ruled five things out:
 
-- **No ranking, no leaderboard, no ordering by amount.** Members appear in a
-  fixed order, always the same one.
-- **No "you" framing** and no second person anywhere on it.
-- **Colour is the member's own identity colour**, stable everywhere, never a
-  scale from good to bad.
-- **No totals compared against each other** in a way that implies a target.
-- **The daughter's own view is the primary thing here**: hers first, with what is
-  left of her allowance if one exists (spec 0009), because that is the only
-  reason she opens the app at all.
+- The screen never ranks members, never builds a leaderboard, and never orders
+  them by amount. Members appear in a fixed order, and it is the same order
+  every time.
+- Nothing on the screen addresses a member as "you", or uses the second person
+  anywhere.
+- Each member keeps their own identity colour everywhere, and no colour runs on
+  a scale from good to bad.
+- The screen never puts two totals against each other in a way that implies a
+  target.
+- The daughter's own figures come first, with what is left of her allowance if
+  she has one (spec 0009), because that is the only reason she opens the app.
 
 ### Data and form
 
-`v_member_spend` for the period, `v_member_spend_by_month` for one member. Form:
-stat tiles per member — deliberately *not* bars, because bars side by side are a
-comparison and a comparison is a ranking.
+The screen reads `v_member_spend` for the period and `v_member_spend_by_month`
+for one member, and it draws a stat tile per member. We ruled bars out here,
+because bars side by side invite a comparison and a comparison becomes a
+ranking.
 
 ### States
 
-A member with no spending this period shows zero, present and unremarkable. A
-member with no allowance shows spend without a "left" figure rather than a zero
-that implies one.
+A member who spent nothing this period shows a zero, present and unremarkable. A
+member with no allowance shows spend and no "left" figure at all, because a zero
+there would imply an allowance that does not exist.
 
 ---
 
-## Element — The confirmation queue
+## Element - The confirmation queue
 
 ### 1. The question
 
-> **"What did Meow record that nobody has checked?"**
+> "What did Meow record that nobody has checked?"
 
-Asked by an admin, and the whole point of the element is that answering it takes
-two minutes and not twenty (ADR 0023).
+An admin asks it, and we built the element so that answering it takes two
+minutes and not twenty (ADR 0023).
 
 ### 2. The data
 
-`v_unconfirmed` — transaction, amount, merchant, category, account, submitter,
-source (text, photo, voice, statement), which fields were inferred, age.
+It reads `v_unconfirmed`: transaction, amount, merchant, category, account,
+submitter, source (text, photo, voice, statement), which fields were inferred,
+and age.
 
 ### 3. The form
 
-A list optimised for **batch approval**: selection is the default interaction,
-approval is one action for everything selected, and correcting is inline rather
-than a detour to another screen.
+The list is built for approving in batches. You select rows by default, one
+action approves everything selected, and you correct a row in place instead of
+leaving for another screen.
 
 ### 4. Layout
 
@@ -316,173 +338,187 @@ than a detour to another screen.
 └──────────────────────────────┘
 ```
 
-Inferred fields are marked, because they are the only part worth a human's
-attention; what the member stated needs no checking.
+The list marks the inferred fields, because they are the only part worth your
+attention: what the member stated needs no checking.
 
 ### 5. States
 
-Empty queue: quiet, one line, **no celebration** — a tick and "nothing to check"
-is enough, and anything more makes the next full queue feel like a reproach.
-Over the age ceiling: stated at the top, once. Photo-derived rows show the
-receipt inline. A row changed by someone else since the list loaded refreshes
-rather than overwriting.
+An empty queue stays quiet: one line, a tick and "nothing to check", with no
+celebration, because anything more would make the next full queue feel like a
+reproach. When rows pass the age ceiling, the screen says so once, at the top.
+A photo-derived row shows its receipt inline. When somebody else changed a row
+after the list loaded, the list refreshes that row instead of overwriting their
+change.
 
 ---
 
 ---
 
-## Desktop — a different audience, not a wider phone
+## Desktop - a different audience, not a wider phone
 
 ### The question, and who asks it
 
-> **"Let me deal with all of this at once."**
+> "Let me deal with all of this at once."
 
-Asked by an admin, sitting down, with a keyboard: drain the confirmation queue,
-work through what an import flagged, fix the chart of accounts, merge merchants.
+An admin asks it, sitting down, with a keyboard, to drain the confirmation
+queue, work through what an import flagged, fix the chart of accounts, and merge
+merchants.
 
-That is a different audience from the phone. The phone was specified for a glance
-— a household member, standing up, ten seconds (spec 0006, R2). **Desktop is the
-working surface**, and treating it as a stretched phone would produce exactly the
-wrong thing: forty-eight-pixel rows and one-at-a-time confirmation for a person
-with a mouse and both hands free.
+That admin is a different reader from the one on the phone, which spec 0006 R2
+specifies for a glance: a household member, standing up, ten seconds. On desktop
+the admin is working, so we design for work. Stretching the phone layout would
+give a person with a mouse and both hands free forty-eight-pixel rows and
+one-at-a-time confirmation.
 
 ### What changes, and what must not
 
 | Changes | Stays the same |
 |---|---|
-| Persistent left navigation instead of a bottom bar | **The same views.** No figure exists on desktop that the phone and the bot cannot get |
-| Lists become dense tables — 48 px rows, eight columns | Colour per entity, stable across surfaces |
+| Persistent left navigation instead of a bottom bar | The same views, so desktop shows no figure that the phone and the bot cannot get |
+| Lists become dense tables of 48 px rows and eight columns | Colour per entity, stable across surfaces |
 | Keyboard operation: arrows to move, space to select, enter to approve | No capture affordance, ever (ADR 0007) |
 | Two-column layouts: a table beside the panel that edits its selection | Provenance marked, unconfirmed share stated, negative normal |
-| Four figures across the top rather than one hero | One primary action per screen |
+| Four figures across the top in place of one hero | One primary action per screen |
 
-**One breakpoint, not three.** Phone and desktop, nothing in between designed
-deliberately — a household of three has phones and laptops, and inventing a
-tablet layout would be work nobody asked for.
+We designed one breakpoint and not three. A household of three has phones and
+laptops, so we draw a phone layout and a desktop layout, and designing a tablet
+layout in between would be work nobody asked for.
 
 ### The keyboard model
 
-Desktop is keyboard-first in the sense ADR 0037 decides: **nothing is reachable
-only by mouse**, and the fast path is the keyboard rather than a courtesy added to
-it. Two surfaces carry it and both are drawn:
+ADR 0037 decides that you can reach everything on desktop from the keyboard, and
+that the keyboard is the fast path and not a courtesy bolted onto the mouse. Two
+surfaces carry the model, and we drew both:
 
-- **The command palette** on `⌘K` — the one thing anyone has to learn. It lists
-  every screen and every action available right here, each with its own shortcut
-  beside it, so it teaches the rest of the map instead of replacing it. It offers
-  a member only what a member may do; the palette is a view of the permissions,
-  never a second gate.
-- **The shortcut map** on `?` — because an undiscoverable shortcut is folklore,
-  not an interface.
+- The command palette on `⌘K` is the one thing you have to learn. It lists every
+  screen and every action available right where you are, each with its own
+  shortcut beside it, so it teaches you the rest of the map instead of replacing
+  it. It offers a member only what that member can do, because the palette shows
+  the permissions and never enforces them a second time.
+- The shortcut map on `?` exists because a shortcut nobody can discover is
+  folklore and not an interface.
 
-The map itself, which every desktop screen must declare its part of:
+Every desktop screen declares its part of the map below:
 
 | Where | Keys |
 |---|---|
-| Everywhere | `⌘K` palette · `/` search · `?` this map · `⌘Z` undo your last action · `Esc` back one level |
-| Any list | `↑`/`↓` or `j`/`k` move · `Space` select · `⇧↑` extend · `Enter` primary action · `O` open |
+| Everywhere | `⌘K` palette, `/` search, `?` this map, `⌘Z` undo your last action, `Esc` back one level |
+| Any list | `↑`/`↓` or `j`/`k` move, `Space` select, `⇧↑` extend, `Enter` primary action, `O` open |
 | Navigation | `g` then `h` overview, `c` categories, `m` merchants, `q` queue, `s` statements, `a` accounts |
-| Queue | `E` approve selected · `Enter` approve and move on · `C` fix category · `A` fix amount (admin) · `⌫` delete (admin) |
-| Reconciliation | `P` preview · `⌘Enter` apply · `M` match by hand · `⌘⇧Z` reverse the import |
-| Accounts and categories | `N` new · `R` rename · `⌘J` merge · `D` deactivate |
+| Queue | `E` approve selected, `Enter` approve and move on, `C` fix category, `A` fix amount (admin), `⌫` delete (admin) |
+| Reconciliation | `P` preview, `⌘Enter` apply, `M` match by hand, `⌘⇧Z` reverse the import |
+| Accounts and categories | `N` new, `R` rename, `⌘J` merge, `D` deactivate |
 
-Two rules that matter more than the list. **Focus is never lost**: after approve,
-correct, delete or undo, focus lands on the next row, visibly — a model that drops
-focus after each action is slower than clicking. And **the phone has none of
-this**: thumb-first targets, no shortcut chrome, no palette. A phone keyboard is
-for typing a capture into the chat.
+Two rules matter more than the list itself. Focus never disappears: after you
+approve, correct, delete or undo, it lands visibly on the next row, because a
+model that drops focus after each action is slower than clicking. And none of
+this reaches the phone, which keeps thumb-first targets and carries no shortcut
+chrome and no palette, since a phone keyboard is there for typing a capture into
+the chat.
 
 ### The four desktop screens
+
+Desktop has four screens, and each reads the views named beside it.
 
 | Screen | Question | Views |
 |---|---|---|
 | Overview | What do we have, owe, and have spent | `v_account_balance`, `v_period_spend`, `v_liability_summary`, `v_account_balance`, `v_category_spend`, `v_unconfirmed_summary` |
 | Queue | What has nobody checked | `v_unconfirmed` |
-| Statements · reconciliation | What will this import do | `v_statement_line`, `v_reconciliation_preview` |
+| Statements and reconciliation | What will this import do | `v_statement_line`, `v_reconciliation_preview` |
 | Accounts and categories | Is the chart still right | `v_account`, `v_category`, `v_account` |
 
-Plus the two keyboard surfaces above, which are overlays rather than screens and
-belong to every one of them.
+The two keyboard surfaces above sit on top of all four as overlays, so they
+belong to every screen and are not screens themselves.
 
-The statements screen earns desktop more than any other: six columns of "what
-will happen to this line" is unreadable on a phone, and it is the one place an
-admin needs the whole picture before applying something that rewrites a month.
+The statements screen earns its desktop layout more than any other, because six
+columns of "what will happen to this line" are unreadable on a phone and this is
+the one place an admin needs the whole picture before applying something that
+rewrites a month.
 
 ---
 
 ## The rest of the phone screens
 
-Designed to the same steps; the ones that needed a decision rather than a layout
-are called out.
+We designed these to the same steps, and the last column names the decision in
+each one that took more than a layout.
 
 | Screen | Question | Views | The decision in it |
 |---|---|---|---|
-| Merchants | Which shops take the money | `v_merchant_spend` | Names are data, never translated, so the screen is identical in both languages — and long names are likeliest here |
-| Search | Where was that one thing | `v_transaction_search` | Searches notes as well as merchants, which is the only reason notes are worth storing |
-| Transaction detail | What is this, and who decided | `v_transaction_detail` | Shows **where the category came from** — merchant default, a person, or a model with its prompt version. Trust is built from being able to ask |
-| Correction form | Fix what is wrong | writes only | Shows every field but offers only what the member may change: amount, date and account are admin-only, category and project are not (ADRs 0016, 0021) |
-| Statements | Is the month complete | `v_statement_import` | PDF-derived rows are labelled provisional **in the list**, so the distinction is visible before anyone trusts a total |
-| Month and forecast | Can we afford this | `v_forecast`, `v_budget_progress`, `v_commitment` | The free-to-spend figure states what it was computed from. Budgets over 100 % use a status colour; spending under it does not get a colour at all |
-| Projects · Project · Wishlist | What did it cost, and can we | `v_project_spend`, `v_project_feasibility`, `v_wish` | The project bar separates **spent, planned and wished** — merging them is the obvious way to mislead. An unaffordable wish is "not yet", never "impossible" |
-| First run | What do I do with an empty system | none | The first screen anyone sees, and it hands the work to the chat rather than to a setup form |
-| Settings · accounts, categories, members | Is the chart right, who can get in | `v_account`, `v_category`, `v_member` | Deactivation instead of deletion, everywhere. Unreviewed categories the agent invented are marked and offered for merging |
+| Merchants | Which shops take the money | `v_merchant_spend` | Names are data and we never translate them, so the screen is identical in both languages, and the longest names turn up here |
+| Search | Where was that one thing | `v_transaction_search` | It searches notes as well as merchants, which is the only reason storing notes pays for itself |
+| Transaction detail | What is this, and who decided | `v_transaction_detail` | It shows where the category came from: a merchant default, a person, or a model with its prompt version. The household trusts the books because it can ask |
+| Correction form | Fix what is wrong | writes only | It shows every field and offers only what this member can change: amount, date and account are admin-only, and category and project are not (ADRs 0016, 0021) |
+| Statements | Is the month complete | `v_statement_import` | It labels PDF-derived rows provisional in the list itself, so you see the difference before you trust a total |
+| Month and forecast | Can we afford this | `v_forecast`, `v_budget_progress`, `v_commitment` | The free-to-spend figure says what it was computed from. A budget over 100 % gets a status colour, and spending under it gets no colour at all |
+| Projects, Project, Wishlist | What did it cost, and can we | `v_project_spend`, `v_project_feasibility`, `v_wish` | The project bar keeps spent, planned and wished apart, because merging them is the easiest way to mislead. An unaffordable wish reads "not yet" and never "impossible" |
+| First run | What do I do with an empty system | none | The first screen anyone sees, and it hands the work to the chat instead of to a setup form |
+| Settings: accounts, categories, members | Is the chart right, who can get in | `v_account`, `v_category`, `v_member` | You deactivate and never delete, everywhere. The screen marks the categories the agent invented and nobody reviewed, and offers to merge them |
 
 ## The administrative surfaces we do not design
 
-n8n's editor, Uptime Kuma and the identity provider's own admin are third-party
-interfaces. We do not design them and there are no artboards for them: what we
-own is that they sit behind one sign-in (ADR 0032) and that reaching them is one
-keystroke from the palette (ADR 0037). The only admin surfaces designed here are
-the ones in our own app — accounts, categories, members and profile.
+n8n's editor, Uptime Kuma and the identity provider's own admin come from third
+parties, so we design none of them and draw no artboards for them. What we do
+own is that they sit behind one sign-in (ADR 0032) and that you reach them with
+one keystroke from the palette (ADR 0037). The only admin screens we design here
+are the ones in our own app: accounts, categories, members and profile.
 
 ## What is deliberately not designed yet
 
-- Budgets, forecast and the "what is left" figure — spec 0009, and screen 4's
-  layout leaves the slot for it.
-- Projects and the wishlist — spec 0010, which adds a second axis to screens 2
-  and 3 rather than a new screen.
-- The reconciliation review — spec 0007, which brings its own element.
-- Any capture affordance. Permanently (ADR 0007).
+- Budgets, the forecast and the "what is left" figure wait for spec 0009, and
+  screen 4's layout already leaves the slot for them.
+- Projects and the wishlist wait for spec 0010, which adds a second axis to
+  screens 2 and 3 instead of a new screen.
+- The reconciliation review waits for spec 0007, which brings its own element.
+- A capture affordance waits for nothing, because ADR 0007 rules it out
+  permanently.
 
 ## The sketches
 
-Step 4 of the process: thirty-six artboards on six pages, the last being the
-dark theme across the screens where the palette actually does work — the phone screens,
-the forms and admin, the planning screens, and the four desktop screens:
+Step 4 of the process produced thirty-six artboards on six pages: the phone
+screens, the forms and admin, the planning screens, the four desktop screens,
+and a last page carrying the dark theme across every screen where the palette
+does real work.
 
-**<https://claude.ai/code/artifact/c630ad91-20b2-487a-8086-260d9ec61f96>**
+<https://claude.ai/code/artifact/c630ad91-20b2-487a-8086-260d9ec61f96>
 
-They are mockups, not a prototype: nothing is clickable, and that is deliberate at
-this stage — the point is to be cheap to reject. Screens belonging to later slices
-are drawn because their specs already define the behaviour; they ship with their
-slice, not before it. They use the validated palette
-from ADR 0022 with Golos Text and tabular figures, and they are where the
-household's admin does the appearance pass before any of it is built.
+They are mockups and not a prototype, so nothing in them is clickable. We left
+them that way on purpose, because a sketch that costs nothing is cheap to
+reject. We drew the screens that belong to later slices because their specs
+already define the behaviour, and each of those screens ships with its own slice
+and not before it. The artboards use the validated palette from ADR 0022 with
+Golos Text and tabular figures, and the household's admin does the appearance
+pass on them before we build any of it.
 
 ## Typography that does not depend on luck
 
-Two constraints, both learned the hard way and both now rules in
-[../standards/ui-design-process.md](../standards/ui-design-process.md):
+Two typography constraints cost us time before we wrote them down, and
+[../standards/ui-design-process.md](../standards/ui-design-process.md) now
+carries both as rules:
 
-- **No layout may depend on the webfont having loaded.** Golos Text comes from
-  Google Fonts and is not embedded in PNG or PDF export, so exported text and a
-  cold cache both fall back — and a fallback with different metrics moves
-  everything. The stack names metric-close fallbacks, and every screen is checked
-  once with the webfont blocked.
-- **Every cell of a table row truncates.** `nowrap` without `text-overflow` pushes
-  its neighbour out of the row instead of shortening itself, and Russian labels
-  are long enough that it will.
+- No layout depends on the webfont having loaded. Golos Text comes from Google
+  Fonts and no PNG or PDF export embeds it, so exported text and a cold cache
+  both fall back, and a fallback with different metrics moves the whole layout.
+  The font stack names metric-close fallbacks, and we check every screen once
+  with the webfont blocked.
+- Every cell of a table row truncates. A cell with `nowrap` and no
+  `text-overflow` pushes its neighbour out of the row instead of shortening
+  itself, and Russian labels are long enough to make that happen.
 
-And one about how to fix such things: **robustness goes on the specific element
-that needs it.** A global rule is a change to every element, including the ones
-that were fine.
+A third rule says how to apply a fix like these: put it on the element that
+needs it. A global rule changes every element, including the ones that were
+already fine.
 
 ## Validation before any of this is called done
 
-- The palette is the validated reference palette; a new one is re-run through the
-  validator (ADR 0022).
-- Every chart has a table view; identity is never colour alone.
-- Checked at 390 px in both themes and both languages, by opening it — **and once
-  with the webfont blocked**, because that is what an export and a cold cache look
+Five checks close a screen, and we run all five before calling it done.
+
+- The screen uses the validated reference palette, and we re-run any new palette
+  through the validator (ADR 0022).
+- Every chart has a table view, and no chart carries an identity in colour
+  alone.
+- We open the screen at 390 px in both themes and both languages, and once more
+  with the webfont blocked, because that is what an export and a cold cache look
   like.
-- Playwright journeys at phone viewport, run rather than reasoned about.
-- Then the appearance pass in Onlook, by the admin who will live with it.
+- We run the Playwright journeys at phone viewport instead of reasoning about
+  what they would do.
+- The admin who will live with the screen does the appearance pass in Onlook.

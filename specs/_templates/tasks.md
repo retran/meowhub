@@ -4,17 +4,17 @@ created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 
-# NNNN — Tasks
+# NNNN - Tasks
 
-Order matters: a task is started only once its dependencies are closed.
+Order matters, because you start a task only once its dependencies are closed.
 Each task is one logical commit that leaves the project in a working state.
 
-Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
+Legend: `[ ]` not started, `[~]` in progress, `[x]` done, `[-]` dropped
 
 ## Tasks
 
 - [ ] **T1.** <what to do>
-  - Depends on: —
+  - Depends on: -
   - Requirements: R1
   - Done when: <verifiable sign>
 
@@ -25,8 +25,8 @@ Legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[-]` dropped
 
 ## Deviation log
 
-If the work had to depart from the plan, record the reason here and what
-changed in the spec or the plan.
+When the work had to depart from the plan, record here why it did and what
+changed in the spec or the plan as a result.
 
 | Date | What changed | Why |
 |---|---|---|

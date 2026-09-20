@@ -3,6 +3,8 @@ description: Break an implementation plan into ordered tasks
 argument-hint: <NNNN — spec number>
 ---
 
+Load the `technical-english` skill before drafting: `tasks.md` is a how-to guide whose reader is the implementer.
+
 Break the plan for spec $ARGUMENTS into tasks.
 
 1. Read `spec.md` and `plan.md` from `specs/$ARGUMENTS-*/`. If `plan.md` is

@@ -3,6 +3,8 @@ description: Create a new feature spec from a description
 argument-hint: <feature description>
 ---
 
+Load the `technical-english` skill before drafting: a spec is prose, and this one is read by whoever builds the feature.
+
 Create a new spec for: $ARGUMENTS
 
 Steps:

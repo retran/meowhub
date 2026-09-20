@@ -10,21 +10,24 @@ superseded-by: []
 #                        name the clause in the text, and set amended-by on the other
 ---
 
-# ADR NNNN — <decision>
+# ADR NNNN - <decision>
 
 > Describe the decision, never the history of this document. Write as though it
-> was always this decision: no "previously", no "reconsidered after", no record of
-> which option was tried first. A rejected option belongs in the alternatives
-> table with its reason, not with its biography. Once `accepted`, this file is not
-> edited — supersede it instead.
+> was always this decision: no "previously", no "reconsidered after", and no
+> record of which option someone tried first. A rejected option belongs in the
+> alternatives table with the reason it lost; how it was tried and dropped is
+> already in version control. Once this ADR is
+> `accepted`, nobody edits it; supersede it instead.
 
 ## Context
 
-The forces that make a decision necessary. Constraints that cannot be avoided.
+The forces that make the decision necessary, and the constraints nobody can
+avoid. Give each one its number, its limit or its source.
 
 ## Decision
 
-What exactly was decided. Affirmative, present tense: "We use X".
+What we decided, in the affirmative and in the present tense: "We use X". One
+paragraph, stated as a fact.
 
 ## Alternatives
 
@@ -34,11 +37,10 @@ What exactly was decided. Affirmative, present tense: "We use X".
 
 ## Consequences
 
-**Good:**
+Good:
 -
 
-**Bad, and the price we accept:**
+Bad, and the price we accept:
 -
 
-**What becomes harder to change later:**
--
+Close with a sentence on what becomes harder to change later, and why.
